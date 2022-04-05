@@ -19,7 +19,7 @@ import (
 )
 
 var updateLog string = "添加记账功能"
-var buildVersion string = "Chika-Zero Alpha0002"
+var buildVersion string = "Chika-Zero Alpha0003"
 var masterChannel string
 var isVersionChange bool = false
 var oneSession *khl.Session
@@ -56,6 +56,7 @@ func prog(state overseer.State) {
 	oneSession = khl.New(token, plog.NewLogger(&l))
 
 	commonChanHandlerInit()
+	accountBookInit()
 	oneSession.AddHandler(messageHan)
 	oneSession.Open()
 
