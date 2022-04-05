@@ -29,6 +29,7 @@ func prog(state overseer.State) {
 	viper.SetDefault("token", "0")
 	viper.SetDefault("masterChannel", "0")
 	viper.SetDefault("oldversion", "0.0.0")
+	viper.SetDefault("lastwordsID", "")
 	viper.SetConfigType("json")
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
@@ -142,7 +143,7 @@ func main() {
 	overseer.Run(overseer.Config{
 		Required: true,
 		Program:  prog,
-		Fetcher:  &fetcher.File{Path: "YUI-KHL"},
+		Fetcher:  &fetcher.File{Path: "Chika"},
 		Debug:    false,
 	})
 }
