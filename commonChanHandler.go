@@ -123,6 +123,13 @@ func commonChanHandler(ctx *khl.TextMessageContext) {
 				},
 			},
 		)
+		handlerSession.MessageCreate(&khl.MessageCreate{
+			MessageCreateBase: khl.MessageCreateBase{
+				Type:     khl.MessageTypeCard,
+				TargetID: ctx.Common.TargetID,
+				Content:  card.String(),
+			},
+		})
 	}
 	return
 }

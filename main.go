@@ -18,8 +18,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-var updateLog string = "添加记账功能"
-var buildVersion string = "Chika-Zero Alpha0003"
+var updateLog string = "修复查账功能"
+var buildVersion string = "Chika-Zero Alpha0004"
 var masterChannel string
 var isVersionChange bool = false
 var oneSession *khl.Session
