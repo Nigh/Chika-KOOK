@@ -18,10 +18,11 @@ import (
 	"github.com/spf13/viper"
 )
 
-var updateLog string = "第一个版本。"
-var buildVersion string = "Chika-Zero Alpha0000"
+var updateLog string = "上线测试中。。。"
+var buildVersion string = "Chika-Zero Alpha0001"
 var masterChannel string
 var isVersionChange bool = false
+var oneSession *khl.Session
 
 func prog(state overseer.State) {
 	fmt.Printf("App#[%s] start ...\n", state.ID)
@@ -52,10 +53,11 @@ func prog(state overseer.State) {
 	token := viper.Get("token").(string)
 	fmt.Println("token=" + token)
 
-	s := khl.New(token, plog.NewLogger(&l))
-	s.AddHandler(messageHan)
-	s.Open()
-	commonChanHandlerInit(s)
+	oneSession = khl.New(token, plog.NewLogger(&l))
+
+	commonChanHandlerInit()
+	oneSession.AddHandler(messageHan)
+	oneSession.Open()
 
 	if isVersionChange {
 		go func() {
@@ -96,7 +98,7 @@ func prog(state overseer.State) {
 				},
 			)
 
-			s.MessageCreate((&khl.MessageCreate{
+			oneSession.MessageCreate((&khl.MessageCreate{
 				MessageCreateBase: khl.MessageCreateBase{
 					Type:     khl.MessageTypeCard,
 					TargetID: masterChannel,
@@ -113,7 +115,7 @@ func prog(state overseer.State) {
 	if viper.Get("lastwordsID").(string) != "" {
 		go func() {
 			<-time.After(time.Second * time.Duration(7))
-			s.MessageDelete(viper.Get("lastwordsID").(string))
+			oneSession.MessageDelete(viper.Get("lastwordsID").(string))
 			viper.Set("lastwordsID", "")
 		}()
 	}
@@ -122,7 +124,7 @@ func prog(state overseer.State) {
 	signal.Notify(sc, os.Interrupt, overseer.SIGUSR2)
 	<-sc
 
-	lastResp, _ := s.MessageCreate((&khl.MessageCreate{
+	lastResp, _ := oneSession.MessageCreate((&khl.MessageCreate{
 		MessageCreateBase: khl.MessageCreateBase{
 			Type:     khl.MessageTypeKMarkdown,
 			TargetID: masterChannel,
@@ -136,7 +138,7 @@ func prog(state overseer.State) {
 
 	<-time.After(time.Second * time.Duration(1))
 	// Cleanly close down the KHL session.
-	s.Close()
+	oneSession.Close()
 }
 
 func main() {
@@ -149,12 +151,10 @@ func main() {
 }
 
 func messageHan(ctx *khl.TextMessageContext) {
-	if ctx.Extra.Author.Bot {
-		return
-	}
 	if ctx.Common.Type != khl.MessageTypeText || ctx.Extra.Author.Bot {
 		return
 	}
+	fmt.Printf("ctx.Common: %v\n", ctx.Common)
 	switch ctx.Common.TargetID {
 	case masterChannel:
 		commonChanHandler(ctx)
