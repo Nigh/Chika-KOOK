@@ -18,6 +18,9 @@ import (
 	"github.com/spf13/viper"
 )
 
+// TODO:
+// 仅保留masterID用于管理，上下线等调试信息直接私聊发送至master
+
 var updateLog string = "修复查账功能"
 var buildVersion string = "Chika-Zero Alpha0004"
 var masterChannel string
@@ -155,9 +158,6 @@ func messageHan(ctx *khl.TextMessageContext) {
 	if ctx.Common.Type != khl.MessageTypeText || ctx.Extra.Author.Bot {
 		return
 	}
-	fmt.Printf("ctx.Common: %v\n", ctx.Common)
-	switch ctx.Common.TargetID {
-	case masterChannel:
-		commonChanHandler(ctx)
-	}
+	// fmt.Printf("ctx.Common: %v\n", ctx.Common)
+	commonChanHandler(ctx)
 }
