@@ -45,12 +45,15 @@ const (
 	Plaintext kType2 = "plain-text"
 	Image            = "image"
 	Kmarkdown        = "kmarkdown"
+	Paragraph        = "paragraph"
 )
 
 type KField struct {
-	Type    kType2 `json:"type"`
-	Content string `json:"content,omitempty"`
-	Src     string `json:"src,omitempty"`
+	Type    kType2   `json:"type"`
+	Content string   `json:"content,omitempty"`
+	Src     string   `json:"src,omitempty"`
+	Cols    int      `json:"cols,omitempty"`
+	Fields  []KField `json:"fields,omitempty"`
 }
 
 type KModule struct {
