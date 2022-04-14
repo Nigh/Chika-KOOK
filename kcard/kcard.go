@@ -92,6 +92,30 @@ func (card *KHLCard) Init() *KHLCard {
 func (card *KHLCard) AddModule(module KModule) {
 	card.Card.Modules = append(card.Card.Modules, module)
 }
+
+func (card *KHLCard) AddModule_markdown(content string) {
+	card.Card.Modules = append(card.Card.Modules, KModule{
+		Type: "section",
+		Text: KField{
+			Type:    "kmarkdown",
+			Content: content,
+		},
+	})
+}
+func (card *KHLCard) AddModule_header(content string) {
+	card.Card.Modules = append(card.Card.Modules, KModule{
+		Type: "header",
+		Text: KField{
+			Type:    "plain-text",
+			Content: content,
+		},
+	})
+}
+func (card *KHLCard) AddModule_divider() {
+	card.Card.Modules = append(card.Card.Modules, KModule{
+		Type: "divider",
+	})
+}
 func (card *KHLCard) String() string {
 	jsons, _ := json.Marshal([]kCard{card.Card})
 	return string(jsons)
