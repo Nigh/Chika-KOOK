@@ -21,11 +21,40 @@ import (
 // TODO:
 // 仅保留masterID用于管理，上下线等调试信息直接私聊发送至master
 
-var updateLog string = "修复查账功能"
-var buildVersion string = "Chika-Zero Alpha0004"
+var updateLog string = "更新语法糖"
+var buildVersion string = "Chika-Zero Alpha0005"
 var masterChannel string
 var isVersionChange bool = false
 var oneSession *khl.Session
+
+func sendKCard(target string, content string) (resp *khl.MessageResp, err error) {
+	return oneSession.MessageCreate((&khl.MessageCreate{
+		MessageCreateBase: khl.MessageCreateBase{
+			Type:     khl.MessageTypeCard,
+			TargetID: target,
+			Content:  content,
+		},
+	}))
+}
+func sendMarkdown(target string, content string) (resp *khl.MessageResp, err error) {
+	return oneSession.MessageCreate((&khl.MessageCreate{
+		MessageCreateBase: khl.MessageCreateBase{
+			Type:     khl.MessageTypeKMarkdown,
+			TargetID: target,
+			Content:  content,
+		},
+	}))
+}
+
+func sendMarkdownDirect(target string, content string) (mr *khl.MessageResp, err error) {
+	return oneSession.DirectMessageCreate(&khl.DirectMessageCreate{
+		MessageCreateBase: khl.MessageCreateBase{
+			Type:     khl.MessageTypeKMarkdown,
+			TargetID: target,
+			Content:  content,
+		},
+	})
+}
 
 func prog(state overseer.State) {
 	fmt.Printf("App#[%s] start ...\n", state.ID)
@@ -101,14 +130,7 @@ func prog(state overseer.State) {
 					},
 				},
 			)
-
-			oneSession.MessageCreate((&khl.MessageCreate{
-				MessageCreateBase: khl.MessageCreateBase{
-					Type:     khl.MessageTypeCard,
-					TargetID: masterChannel,
-					Content:  card.String(),
-				},
-			}))
+			sendKCard(masterChannel, card.String())
 		}()
 	}
 
@@ -128,13 +150,7 @@ func prog(state overseer.State) {
 	signal.Notify(sc, os.Interrupt, overseer.SIGUSR2)
 	<-sc
 
-	lastResp, _ := oneSession.MessageCreate((&khl.MessageCreate{
-		MessageCreateBase: khl.MessageCreateBase{
-			Type:     khl.MessageTypeKMarkdown,
-			TargetID: masterChannel,
-			Content:  randomSentence(shutdown),
-		},
-	}))
+	lastResp, _ := sendMarkdown(masterChannel, randomSentence(shutdown))
 	viper.Set("lastwordsID", lastResp.MsgID)
 	fmt.Println("[Write] lastwordsID=", lastResp.MsgID)
 	viper.WriteConfig()

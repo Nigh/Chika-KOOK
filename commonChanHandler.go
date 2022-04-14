@@ -32,18 +32,11 @@ func clock(input chan interface{}) {
 }
 
 func commonChanHandler(ctx *khl.TextMessageContext) {
-	handlerSession := ctx.Session
 	if ctx.Common.Type != khl.MessageTypeText {
 		return
 	}
 	reply := func(words string) {
-		handlerSession.MessageCreate(&khl.MessageCreate{
-			MessageCreateBase: khl.MessageCreateBase{
-				Type:     khl.MessageTypeKMarkdown,
-				TargetID: ctx.Common.TargetID,
-				Content:  words,
-			},
-		})
+		sendMarkdown(ctx.Common.TargetID, words)
 	}
 	match, _ := regexp.MatchString("^Chika在么.{0,5}", ctx.Common.Content)
 	if match {
@@ -123,13 +116,7 @@ func commonChanHandler(ctx *khl.TextMessageContext) {
 				},
 			},
 		)
-		handlerSession.MessageCreate(&khl.MessageCreate{
-			MessageCreateBase: khl.MessageCreateBase{
-				Type:     khl.MessageTypeCard,
-				TargetID: ctx.Common.TargetID,
-				Content:  card.String(),
-			},
-		})
+		sendKCard(ctx.Common.TargetID, card.String())
 	}
 	return
 }
