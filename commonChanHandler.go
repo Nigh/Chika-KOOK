@@ -12,86 +12,17 @@ import (
 
 type handlerRule struct {
 	matcher string
-	getter  func([]string, func(string))
+	getter  func(ctx *khl.TextMessageContext, matchs []string, reply func(string) string)
 }
 
-var once sync.Once
+var commOnce sync.Once
 var clockInput = make(chan interface{})
 var commRules []handlerRule
 
-func commonChanHandlerInit() {
-	once.Do(func() { go clock(clockInput) })
-	commRules = []handlerRule{
-		{`^Chika在么.{0,5}`, func(s []string, f func(string)) {
-			if len(s) > 0 {
-				f("Chika在的哦")
-			}
-		}},
-	}
-}
-
-func clock(input chan interface{}) {
-	min := time.NewTicker(1 * time.Minute)
-	halfhour := time.NewTicker(23 * time.Minute)
-	for {
-		select {
-		case <-min.C:
-			hour, min, _ := time.Now().Local().Clock()
-			if min == 0 && hour == 5 {
-			}
-		case <-halfhour.C:
-		}
-	}
-}
-
-func commonChanHandler(ctx *khl.TextMessageContext) {
-	if ctx.Common.Type != khl.MessageTypeText {
-		return
-	}
-	reply := func(words string) {
-		sendMarkdown(ctx.Common.TargetID, words)
-	}
-	for n := range commRules {
-		v := &commRules[n]
-		r := regexp.MustCompile(v.matcher)
-		matchs := r.FindStringSubmatch(ctx.Common.Content)
-		if len(matchs) > 0 {
-			v.getter(matchs, reply)
-			return
-		}
-	}
-	match, _ := regexp.MatchString("^创建账本", ctx.Common.Content)
-	if match {
-		err := accountBookCreate(ctx.Common.TargetID)
-		if err != nil {
-			reply("错误:" + err.Error())
-		} else {
-			reply("账本已创建")
-		}
-		return
-	}
-	r := regexp.MustCompile(`^(支出|收入)\s+(\d+\.?\d*)\s*(.*)`)
-	matchs := r.FindStringSubmatch(ctx.Common.Content)
-	if len(matchs) > 0 {
-		money, _ := strconv.ParseFloat(matchs[2], 64)
-		if matchs[1] == "支出" {
-			money = -1 * money
-		}
-		comment := matchs[3]
-		user := ctx.Common.AuthorID
-		err := accountBookRecordAdd(ctx.Common.TargetID, user, money, comment)
-		if err != nil {
-			reply("错误:" + err.Error())
-		} else {
-			reply("记账成功，账目ID=`" + ctx.Common.MsgID + "`")
-		}
-		return
-	}
-
-	match, _ = regexp.MatchString("^查账", ctx.Common.Content)
+func accountCheck(ctx *khl.TextMessageContext, s []string, f func(string) string) {
 	records, err := accountBookGetSummary(ctx.Common.TargetID)
 	if err != nil {
-		reply("错误:" + err.Error())
+		f("错误:" + err.Error())
 	} else {
 		card := kcard.KHLCard{}
 		card.Init()
@@ -136,5 +67,76 @@ func commonChanHandler(ctx *khl.TextMessageContext) {
 		)
 		sendKCard(ctx.Common.TargetID, card.String())
 	}
-	return
+}
+
+func accountAdd(ctx *khl.TextMessageContext, s []string, f func(string) string) {
+	money, _ := strconv.ParseFloat(s[2], 64)
+	if s[1] == "支出" {
+		money = -1 * money
+	}
+	comment := s[3]
+	err := accountBookRecordAdd(ctx.Common.TargetID, ctx.Common.MsgID, ctx.Common.AuthorID, money, comment)
+	if err != nil {
+		f("错误:" + err.Error())
+	} else {
+		f("记账成功，账目ID=`" + ctx.Common.MsgID + "`")
+	}
+}
+
+func commonChanHandlerInit() {
+	commOnce.Do(func() { go clock(clockInput) })
+	commRules = []handlerRule{
+		{`^Chika在么.{0,5}`, func(ctx *khl.TextMessageContext, s []string, f func(string) string) {
+			msgId := f("Chika在的哦")
+			go func(id []string) {
+				<-time.After(time.Second * time.Duration(5))
+				for _, v := range id {
+					oneSession.MessageDelete(v)
+				}
+			}([]string{msgId, ctx.Common.MsgID})
+		}},
+		{`^创建账本`, func(ctx *khl.TextMessageContext, s []string, f func(string) string) {
+			err := accountBookCreate(ctx.Common.TargetID)
+			if err != nil {
+				f("错误:" + err.Error())
+			} else {
+				f("账本已创建")
+			}
+		}},
+		{`^查账`, accountCheck},
+		{`^(支出|收入)\s+(\d+\.?\d*)\s*(.*)`, accountAdd},
+	}
+}
+
+func clock(input chan interface{}) {
+	min := time.NewTicker(1 * time.Minute)
+	halfhour := time.NewTicker(23 * time.Minute)
+	for {
+		select {
+		case <-min.C:
+			hour, min, _ := time.Now().Local().Clock()
+			if min == 0 && hour == 5 {
+			}
+		case <-halfhour.C:
+		}
+	}
+}
+
+func commonChanHandler(ctx *khl.TextMessageContext) {
+	if ctx.Common.Type != khl.MessageTypeText {
+		return
+	}
+	reply := func(words string) string {
+		resp, _ := sendMarkdown(ctx.Common.TargetID, words)
+		return resp.MsgID
+	}
+	for n := range commRules {
+		v := &commRules[n]
+		r := regexp.MustCompile(v.matcher)
+		matchs := r.FindStringSubmatch(ctx.Common.Content)
+		if len(matchs) > 0 {
+			v.getter(ctx, matchs, reply)
+			return
+		}
+	}
 }
