@@ -22,6 +22,7 @@ type moneyRecord struct {
 	Time    int64
 	Money   float64
 	Comment string
+	Id      string
 }
 
 type userRecord struct {
@@ -35,8 +36,8 @@ type accountRecord struct {
 	MRecords []moneyRecord
 }
 
-func (a *accountRecord) Add(user string, money float64, comment string) error {
-	a.MRecords = append(a.MRecords, moneyRecord{user, time.Now().Unix(), money, comment})
+func (a *accountRecord) Add(id string, user string, money float64, comment string) error {
+	a.MRecords = append(a.MRecords, moneyRecord{user, time.Now().Unix(), money, comment, id})
 	var found bool = false
 	for i, v := range a.URecords {
 		if v.User == user {
@@ -83,11 +84,11 @@ func accountBookGetSummary(id string) ([]userRecord, error) {
 	return nil, errors.New("未找到账本")
 }
 
-func accountBookRecordAdd(groupId string, user string, money float64, comment string) error {
+func accountBookRecordAdd(groupId string, accountId string, user string, money float64, comment string) error {
 	var found bool = false
 	for i, v := range cacheRecord {
 		if v.Id == groupId {
-			cacheRecord[i].Add(user, money, comment)
+			cacheRecord[i].Add(accountId, user, money, comment)
 			found = true
 			break
 		}
