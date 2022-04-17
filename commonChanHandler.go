@@ -10,11 +10,24 @@ import (
 	"github.com/lonelyevil/khl"
 )
 
+type handlerRule struct {
+	matcher string
+	getter  func([]string, func(string))
+}
+
 var once sync.Once
 var clockInput = make(chan interface{})
+var commRules []handlerRule
 
 func commonChanHandlerInit() {
 	once.Do(func() { go clock(clockInput) })
+	commRules = []handlerRule{
+		{`^Chika在么.{0,5}`, func(s []string, f func(string)) {
+			if len(s) > 0 {
+				f("Chika在的哦")
+			}
+		}},
+	}
 }
 
 func clock(input chan interface{}) {
@@ -38,12 +51,16 @@ func commonChanHandler(ctx *khl.TextMessageContext) {
 	reply := func(words string) {
 		sendMarkdown(ctx.Common.TargetID, words)
 	}
-	match, _ := regexp.MatchString("^Chika在么.{0,5}", ctx.Common.Content)
-	if match {
-		reply("Chika在的哦")
-		return
+	for n := range commRules {
+		v := &commRules[n]
+		r := regexp.MustCompile(v.matcher)
+		matchs := r.FindStringSubmatch(ctx.Common.Content)
+		if len(matchs) > 0 {
+			v.getter(matchs, reply)
+			return
+		}
 	}
-	match, _ = regexp.MatchString("^创建账本", ctx.Common.Content)
+	match, _ := regexp.MatchString("^创建账本", ctx.Common.Content)
 	if match {
 		err := accountBookCreate(ctx.Common.TargetID)
 		if err != nil {
@@ -66,10 +83,11 @@ func commonChanHandler(ctx *khl.TextMessageContext) {
 		if err != nil {
 			reply("错误:" + err.Error())
 		} else {
-			reply("记账成功")
+			reply("记账成功，账目ID=`" + ctx.Common.MsgID + "`")
 		}
 		return
 	}
+
 	match, _ = regexp.MatchString("^查账", ctx.Common.Content)
 	records, err := accountBookGetSummary(ctx.Common.TargetID)
 	if err != nil {
