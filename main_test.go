@@ -1,21 +1,15 @@
 package main
 
 import (
+	"fmt"
+	"regexp"
 	"testing"
 )
 
-func TestInit(t *testing.T) {
-	accountBookInit()
-}
-
-func TestAB(t *testing.T) {
-	accountBookInit()
-	accountBookCreate("2980776678707937")
-	accountBookRecordAdd("2980776678707937", "3797446169", 100, "")
-	accountBookRecordAdd("2980776678707937", "3797446169", -100, "")
-	accountBookRecordAdd("2980776678707937", "a3797446169", 100, "")
-	accountBookRecordAdd("12345", "a3797446169", 100, "")
-	accountBookCreate("12345")
-	accountBookRecordAdd("12345", "a3797446169", 100, "")
-	accountBookCreate("12345")
+func TestDelete(t *testing.T) {
+	r := regexp.MustCompile(`^删除\s+([0-9a-f\-]{16,48})`)
+	matchs := r.FindStringSubmatch("删除 bca32308-a94a-4ee6-bc67-3753e1b9d86f")
+	for _, v := range matchs {
+		fmt.Println(v)
+	}
 }

@@ -77,9 +77,16 @@ func accountAdd(ctx *khl.TextMessageContext, s []string, f func(string) string) 
 	comment := s[3]
 	err := accountBookRecordAdd(ctx.Common.TargetID, ctx.Common.MsgID, ctx.Common.AuthorID, money, comment)
 	if err != nil {
-		f("错误:" + err.Error())
+		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
 	} else {
-		f("记账成功，账目ID=`" + ctx.Common.MsgID + "`")
+		f("(met)" + ctx.Common.AuthorID + "(met) " + "记账成功，账目ID=`" + ctx.Common.MsgID + "`")
+	}
+}
+func accountDelete(ctx *khl.TextMessageContext, s []string, f func(string) string) {
+	// "(met)"+ctx.Common.AuthorID+"(met)"
+	err := accountBookRecordDelete(ctx.Common.TargetID, s[2], ctx.Common.AuthorID)
+	if err != nil {
+		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
 	}
 }
 
@@ -98,16 +105,16 @@ func commonChanHandlerInit() {
 		{`^创建账本`, func(ctx *khl.TextMessageContext, s []string, f func(string) string) {
 			err := accountBookCreate(ctx.Common.TargetID)
 			if err != nil {
-				f("错误:" + err.Error())
+				f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
 			} else {
-				f("账本已创建")
+				f("(met)" + ctx.Common.AuthorID + "(met) " + "账本已创建")
 			}
 		}},
 		{`^查账`, accountCheck},
 		{`^(支出|收入)\s+(\d+\.?\d*)\s*(.*)`, accountAdd},
+		{`^删除\s+([0-9a-f\-]{16,48})`, accountDelete},
 	}
 }
-
 func clock(input chan interface{}) {
 	min := time.NewTicker(1 * time.Minute)
 	halfhour := time.NewTicker(23 * time.Minute)
