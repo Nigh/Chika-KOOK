@@ -79,14 +79,15 @@ func accountAdd(ctx *khl.TextMessageContext, s []string, f func(string) string) 
 	if err != nil {
 		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
 	} else {
-		f("(met)" + ctx.Common.AuthorID + "(met) " + "记账成功，账目ID=`" + ctx.Common.MsgID + "`")
+		f("(met)" + ctx.Common.AuthorID + "(met) " + "记账成功，账目ID:`" + ctx.Common.MsgID + "`")
 	}
 }
 func accountDelete(ctx *khl.TextMessageContext, s []string, f func(string) string) {
-	// "(met)"+ctx.Common.AuthorID+"(met)"
-	err := accountBookRecordDelete(ctx.Common.TargetID, s[2], ctx.Common.AuthorID)
+	err := accountBookRecordDelete(ctx.Common.TargetID, s[1], ctx.Common.AuthorID)
 	if err != nil {
 		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
+	} else {
+		f("(met)" + ctx.Common.AuthorID + "(met) " + "账目已删除")
 	}
 }
 
