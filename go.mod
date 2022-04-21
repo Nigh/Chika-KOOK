@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/jpillora/overseer v1.1.6
-	github.com/lonelyevil/khl v0.0.21
+	github.com/lonelyevil/khl v0.0.23
 	github.com/lonelyevil/khl/log_adapter/plog v0.0.20
 	github.com/nanobox-io/golang-scribble v0.0.0-20190309225732-aa3e7c118975
 	github.com/phuslu/log v1.0.71
