@@ -172,13 +172,13 @@ func main() {
 }
 
 func markdownHan(ctx *khl.KmarkdownMessageContext) {
-	fmt.Printf("ctx.Common: %v\n", ctx.Common)
-	fmt.Printf("ctx.Extra: %v\n", ctx.Extra)
+	if ctx.Extra.Author.Bot {
+		return
+	}
+	commonChanMarkdownHandler(ctx)
 }
 
 func messageHan(ctx *khl.TextMessageContext) {
-	fmt.Printf("ctx.Common: %v\n", ctx.Common)
-	fmt.Printf("ctx.Extra: %v\n", ctx.Extra)
 	if ctx.Extra.Author.Bot {
 		return
 	}

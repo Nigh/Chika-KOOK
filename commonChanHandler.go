@@ -12,14 +12,35 @@ import (
 
 type handlerRule struct {
 	matcher string
-	getter  func(ctx *khl.TextMessageContext, matchs []string, reply func(string) string)
+	getter  func(ctx *khl.EventHandlerCommonContext, matchs []string, reply func(string) string)
 }
 
 var commOnce sync.Once
 var clockInput = make(chan interface{})
-var commRules []handlerRule
+var commRules []handlerRule = []handlerRule{
+	{`^Chika在么.{0,5}`, func(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
+		msgId := f("Chika在的哦")
+		go func(id []string) {
+			<-time.After(time.Second * time.Duration(5))
+			for _, v := range id {
+				oneSession.MessageDelete(v)
+			}
+		}([]string{msgId, ctx.Common.MsgID})
+	}},
+	{`^创建账本`, func(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
+		err := accountBookCreate(ctx.Common.TargetID)
+		if err != nil {
+			f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
+		} else {
+			f("(met)" + ctx.Common.AuthorID + "(met) " + "账本已创建")
+		}
+	}},
+	{`^查账`, accountCheck},
+	{`^(支出|收入)\s+(\d+\.?\d*)\s*(.*)`, accountAdd},
+	{`^删除\s+([0-9a-f\-]{16,48})`, accountDelete},
+}
 
-func accountCheck(ctx *khl.TextMessageContext, s []string, f func(string) string) {
+func accountCheck(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
 	records, err := accountBookGetSummary(ctx.Common.TargetID)
 	if err != nil {
 		f("错误:" + err.Error())
@@ -69,7 +90,7 @@ func accountCheck(ctx *khl.TextMessageContext, s []string, f func(string) string
 	}
 }
 
-func accountAdd(ctx *khl.TextMessageContext, s []string, f func(string) string) {
+func accountAdd(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
 	money, _ := strconv.ParseFloat(s[2], 64)
 	if s[1] == "支出" {
 		money = -1 * money
@@ -82,7 +103,7 @@ func accountAdd(ctx *khl.TextMessageContext, s []string, f func(string) string) 
 		f("(met)" + ctx.Common.AuthorID + "(met) " + "记账成功，账目ID:`" + ctx.Common.MsgID + "`")
 	}
 }
-func accountDelete(ctx *khl.TextMessageContext, s []string, f func(string) string) {
+func accountDelete(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
 	err := accountBookRecordDelete(ctx.Common.TargetID, s[1], ctx.Common.AuthorID)
 	if err != nil {
 		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
@@ -93,28 +114,6 @@ func accountDelete(ctx *khl.TextMessageContext, s []string, f func(string) strin
 
 func commonChanHandlerInit() {
 	commOnce.Do(func() { go clock(clockInput) })
-	commRules = []handlerRule{
-		{`^Chika在么.{0,5}`, func(ctx *khl.TextMessageContext, s []string, f func(string) string) {
-			msgId := f("Chika在的哦")
-			go func(id []string) {
-				<-time.After(time.Second * time.Duration(5))
-				for _, v := range id {
-					oneSession.MessageDelete(v)
-				}
-			}([]string{msgId, ctx.Common.MsgID})
-		}},
-		{`^创建账本`, func(ctx *khl.TextMessageContext, s []string, f func(string) string) {
-			err := accountBookCreate(ctx.Common.TargetID)
-			if err != nil {
-				f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
-			} else {
-				f("(met)" + ctx.Common.AuthorID + "(met) " + "账本已创建")
-			}
-		}},
-		{`^查账`, accountCheck},
-		{`^(支出|收入)\s+(\d+\.?\d*)\s*(.*)`, accountAdd},
-		{`^删除\s+([0-9a-f\-]{16,48})`, accountDelete},
-	}
 }
 func clock(input chan interface{}) {
 	min := time.NewTicker(1 * time.Minute)
@@ -130,8 +129,8 @@ func clock(input chan interface{}) {
 	}
 }
 
-func commonChanHandler(ctx *khl.TextMessageContext) {
-	if ctx.Common.Type != khl.MessageTypeText {
+func commonChanMarkdownHandler(ctx *khl.KmarkdownMessageContext) {
+	if ctx.Common.Type != khl.MessageTypeText && ctx.Common.Type != khl.MessageTypeKMarkdown {
 		return
 	}
 	reply := func(words string) string {
@@ -143,7 +142,26 @@ func commonChanHandler(ctx *khl.TextMessageContext) {
 		r := regexp.MustCompile(v.matcher)
 		matchs := r.FindStringSubmatch(ctx.Common.Content)
 		if len(matchs) > 0 {
-			go v.getter(ctx, matchs, reply)
+			go v.getter(ctx.EventHandlerCommonContext, matchs, reply)
+			return
+		}
+	}
+}
+
+func commonChanHandler(ctx *khl.TextMessageContext) {
+	if ctx.Common.Type != khl.MessageTypeText && ctx.Common.Type != khl.MessageTypeKMarkdown {
+		return
+	}
+	reply := func(words string) string {
+		resp, _ := sendMarkdown(ctx.Common.TargetID, words)
+		return resp.MsgID
+	}
+	for n := range commRules {
+		v := &commRules[n]
+		r := regexp.MustCompile(v.matcher)
+		matchs := r.FindStringSubmatch(ctx.Common.Content)
+		if len(matchs) > 0 {
+			go v.getter(ctx.EventHandlerCommonContext, matchs, reply)
 			return
 		}
 	}
