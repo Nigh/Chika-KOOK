@@ -90,6 +90,7 @@ func prog(state overseer.State) {
 	commonChanHandlerInit()
 	accountBookInit()
 	oneSession.AddHandler(messageHan)
+	oneSession.AddHandler(markdownHan)
 	oneSession.Open()
 
 	if isVersionChange {
@@ -170,10 +171,16 @@ func main() {
 	})
 }
 
+func markdownHan(ctx *khl.KmarkdownMessageContext) {
+	fmt.Printf("ctx.Common: %v\n", ctx.Common)
+	fmt.Printf("ctx.Extra: %v\n", ctx.Extra)
+}
+
 func messageHan(ctx *khl.TextMessageContext) {
-	if ctx.Common.Type != khl.MessageTypeText || ctx.Extra.Author.Bot {
+	fmt.Printf("ctx.Common: %v\n", ctx.Common)
+	fmt.Printf("ctx.Extra: %v\n", ctx.Extra)
+	if ctx.Extra.Author.Bot {
 		return
 	}
-	// fmt.Printf("ctx.Common: %v\n", ctx.Common)
 	commonChanHandler(ctx)
 }

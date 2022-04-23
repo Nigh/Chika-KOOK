@@ -143,7 +143,7 @@ func commonChanHandler(ctx *khl.TextMessageContext) {
 		r := regexp.MustCompile(v.matcher)
 		matchs := r.FindStringSubmatch(ctx.Common.Content)
 		if len(matchs) > 0 {
-			v.getter(ctx, matchs, reply)
+			go v.getter(ctx, matchs, reply)
 			return
 		}
 	}
