@@ -169,6 +169,9 @@ func commonChanHandler(ctx *khl.TextMessageContext) {
 }
 
 func reactionHan(ctx *khl.ReactionAddContext) {
+	if ctx.Extra.UserID == botID {
+		return
+	}
 	reply := func(words string) string {
 		resp, _ := sendMarkdown(ctx.Extra.ChannelID, words)
 		return resp.MsgID

@@ -26,6 +26,7 @@ var buildVersion string = "Chika-Zero Alpha0007"
 var masterChannel string
 var isVersionChange bool = false
 var oneSession *khl.Session
+var botID string
 
 func sendKCard(target string, content string) (resp *khl.MessageResp, err error) {
 	return oneSession.MessageCreate((&khl.MessageCreate{
@@ -93,6 +94,8 @@ func prog(state overseer.State) {
 	oneSession.AddHandler(markdownHan)
 	oneSession.AddHandler(reactionHan)
 	oneSession.Open()
+	bot, _ := oneSession.UserMe()
+	botID = bot.ID
 
 	if isVersionChange {
 		go func() {
