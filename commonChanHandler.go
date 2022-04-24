@@ -179,15 +179,16 @@ func reactionHan(ctx *khl.ReactionAddContext) {
 	go func() {
 		if ctx.Extra.Emoji.ID == "❌" {
 			if accountExist(ctx.Extra.ChannelID, ctx.Extra.MsgID) {
+				var comment string = "NULL"
+				book := accountBookGet(ctx.Extra.ChannelID)
+				if book != nil {
+					comment = book.GetComment(ctx.Extra.MsgID)
+				}
+
 				err := accountBookRecordDelete(ctx.Extra.ChannelID, ctx.Extra.MsgID, ctx.Extra.UserID)
 				if err != nil {
 					reply("(met)" + ctx.Extra.UserID + "(met) " + err.Error())
 				} else {
-					var comment string = "NULL"
-					book := accountBookGet(ctx.Extra.ChannelID)
-					if book != nil {
-						comment = book.GetComment(ctx.Extra.MsgID)
-					}
 					reply("(met)" + ctx.Extra.UserID + "(met) 成功删除了备注为`" + comment + "`的账目")
 					oneSession.MessageDelete(ctx.Extra.MsgID)
 				}
