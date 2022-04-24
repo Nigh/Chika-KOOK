@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	kcard "local/khlcard"
 	"regexp"
 	"strconv"
@@ -101,8 +100,8 @@ func accountAdd(ctx *khl.EventHandlerCommonContext, s []string, f func(string) s
 	if err != nil {
 		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
 	} else {
-		f("(met)" + ctx.Common.AuthorID + "(met) " + "记账成功，账目ID:`" + ctx.Common.MsgID + "`")
-		oneSession.MessageAddReaction(ctx.Common.MsgID, ":x:")
+		f("(met)" + ctx.Common.AuthorID + "(met) " + "记账成功，记账人点击记账下方的 ❌ 可以删除对应条目")
+		oneSession.MessageAddReaction(ctx.Common.MsgID, "❌")
 	}
 }
 func accountDelete(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
@@ -175,11 +174,21 @@ func reactionHan(ctx *khl.ReactionAddContext) {
 		return resp.MsgID
 	}
 	go func() {
-		str := "User:(met)" + ctx.Extra.UserID + "(met) added [" + ctx.Extra.Emoji.ID + "]" +
-			ctx.Extra.Emoji.Name + " on msg `" + ctx.Extra.MsgID + "`"
-		fmt.Println(str)
-		msgId := reply(str)
-		<-time.After(time.Second * time.Duration(10))
-		oneSession.MessageDelete(msgId)
+		if ctx.Extra.Emoji.ID == "❌" {
+			if accountExist(ctx.Extra.ChannelID, ctx.Extra.MsgID) {
+				err := accountBookRecordDelete(ctx.Extra.ChannelID, ctx.Extra.MsgID, ctx.Extra.UserID)
+				if err != nil {
+					reply("(met)" + ctx.Extra.UserID + "(met) " + err.Error())
+				} else {
+					var comment string = "NULL"
+					book := accountBookGet(ctx.Extra.ChannelID)
+					if book != nil {
+						comment = book.GetComment(ctx.Extra.MsgID)
+					}
+					reply("(met)" + ctx.Extra.UserID + "(met) 成功删除了备注为`" + comment + "`的账目")
+					oneSession.MessageDelete(ctx.Extra.MsgID)
+				}
+			}
+		}
 	}()
 }

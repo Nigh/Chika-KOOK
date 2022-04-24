@@ -90,6 +90,22 @@ func (a *accountRecord) Delete(id string, user string) error {
 	}
 	return errors.New("未找到指定账目")
 }
+func (a *accountRecord) Exist(id string) bool {
+	for _, v := range a.MRecords {
+		if v.Id == id {
+			return true
+		}
+	}
+	return false
+}
+func (a *accountRecord) GetComment(id string) string {
+	for _, v := range a.MRecords {
+		if v.Id == id {
+			return v.Comment
+		}
+	}
+	return "空"
+}
 
 func accountBookInit() {
 	db, _ = scribble.New("./database", nil)
@@ -107,6 +123,33 @@ func accountBookCreate(id string) error {
 	}
 	cacheRecord = append(cacheRecord, accountRecord{id, []userRecord{}, []moneyRecord{}})
 	return allAccountSave()
+}
+
+func accountBookExist(id string) bool {
+	for _, v := range cacheRecord {
+		if v.Id == id {
+			return true
+		}
+	}
+	return false
+}
+
+func accountExist(groupId, accountId string) bool {
+	for i, v := range cacheRecord {
+		if v.Id == groupId {
+			return cacheRecord[i].Exist(accountId)
+		}
+	}
+	return false
+}
+
+func accountBookGet(groupId string) *accountRecord {
+	for i, v := range cacheRecord {
+		if v.Id == groupId {
+			return &cacheRecord[i]
+		}
+	}
+	return nil
 }
 
 func accountBookGetSummary(id string) ([]userRecord, error) {
