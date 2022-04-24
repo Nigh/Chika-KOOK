@@ -91,6 +91,7 @@ func prog(state overseer.State) {
 	accountBookInit()
 	oneSession.AddHandler(messageHan)
 	oneSession.AddHandler(markdownHan)
+	oneSession.AddHandler(reactionHan)
 	oneSession.Open()
 
 	if isVersionChange {

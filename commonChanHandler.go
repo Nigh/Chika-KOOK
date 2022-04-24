@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	kcard "local/khlcard"
 	"regexp"
 	"strconv"
@@ -101,6 +102,7 @@ func accountAdd(ctx *khl.EventHandlerCommonContext, s []string, f func(string) s
 		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
 	} else {
 		f("(met)" + ctx.Common.AuthorID + "(met) " + "记账成功，账目ID:`" + ctx.Common.MsgID + "`")
+		oneSession.MessageAddReaction(ctx.Common.MsgID, ":x:")
 	}
 }
 func accountDelete(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
@@ -165,4 +167,19 @@ func commonChanHandler(ctx *khl.TextMessageContext) {
 			return
 		}
 	}
+}
+
+func reactionHan(ctx *khl.ReactionAddContext) {
+	reply := func(words string) string {
+		resp, _ := sendMarkdown(ctx.Extra.ChannelID, words)
+		return resp.MsgID
+	}
+	go func() {
+		str := "User:(met)" + ctx.Extra.UserID + "(met) added [" + ctx.Extra.Emoji.ID + "]" +
+			ctx.Extra.Emoji.Name + " on msg `" + ctx.Extra.MsgID + "`"
+		fmt.Println(str)
+		msgId := reply(str)
+		<-time.After(time.Second * time.Duration(10))
+		oneSession.MessageDelete(msgId)
+	}()
 }
