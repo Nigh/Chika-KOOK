@@ -21,8 +21,8 @@ import (
 // TODO:
 // 仅保留masterID用于管理，上下线等调试信息直接私聊发送至master
 
-var updateLog string = "增加删除账目功能"
-var buildVersion string = "Chika-Zero Alpha0007"
+var updateLog string = "增加了更方便的删除账目功能"
+var buildVersion string = "Chika-Zero Alpha0008"
 var masterChannel string
 var isVersionChange bool = false
 var oneSession *khl.Session
