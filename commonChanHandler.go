@@ -7,18 +7,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lonelyevil/khl"
+	"github.com/lonelyevil/kook"
 )
 
 type handlerRule struct {
 	matcher string
-	getter  func(ctx *khl.EventHandlerCommonContext, matchs []string, reply func(string) string)
+	getter  func(ctx *kook.EventHandlerCommonContext, matchs []string, reply func(string) string)
 }
 
 var commOnce sync.Once
 var clockInput = make(chan interface{})
 var commRules []handlerRule = []handlerRule{
-	{`^Chika在么.{0,5}`, func(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
+	{`^Chika在么.{0,5}`, func(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 		msgId := f("Chika在的哦")
 		go func(id []string) {
 			<-time.After(time.Second * time.Duration(5))
@@ -27,7 +27,7 @@ var commRules []handlerRule = []handlerRule{
 			}
 		}([]string{msgId, ctx.Common.MsgID})
 	}},
-	{`^创建账本`, func(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
+	{`^创建账本`, func(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 		err := accountBookCreate(ctx.Common.TargetID)
 		if err != nil {
 			f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
@@ -40,7 +40,7 @@ var commRules []handlerRule = []handlerRule{
 	{`^删除\s+([0-9a-f\-]{16,48})`, accountDelete},
 }
 
-func accountCheck(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
+func accountCheck(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	records, err := accountBookGetSummary(ctx.Common.TargetID)
 	if err != nil {
 		f("错误:" + err.Error())
@@ -90,7 +90,7 @@ func accountCheck(ctx *khl.EventHandlerCommonContext, s []string, f func(string)
 	}
 }
 
-func accountAdd(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
+func accountAdd(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	money, _ := strconv.ParseFloat(s[2], 64)
 	if s[1] == "支出" {
 		money = -1 * money
@@ -104,7 +104,7 @@ func accountAdd(ctx *khl.EventHandlerCommonContext, s []string, f func(string) s
 		oneSession.MessageAddReaction(ctx.Common.MsgID, "❌")
 	}
 }
-func accountDelete(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
+func accountDelete(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	err := accountBookRecordDelete(ctx.Common.TargetID, s[1], ctx.Common.AuthorID)
 	if err != nil {
 		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
@@ -130,8 +130,8 @@ func clock(input chan interface{}) {
 	}
 }
 
-func commonChanMarkdownHandler(ctx *khl.KmarkdownMessageContext) {
-	if ctx.Common.Type != khl.MessageTypeText && ctx.Common.Type != khl.MessageTypeKMarkdown {
+func commonChanMarkdownHandler(ctx *kook.KmarkdownMessageContext) {
+	if ctx.Common.Type != kook.MessageTypeText && ctx.Common.Type != kook.MessageTypeKMarkdown {
 		return
 	}
 	reply := func(words string) string {
@@ -149,8 +149,8 @@ func commonChanMarkdownHandler(ctx *khl.KmarkdownMessageContext) {
 	}
 }
 
-func commonChanHandler(ctx *khl.TextMessageContext) {
-	if ctx.Common.Type != khl.MessageTypeText && ctx.Common.Type != khl.MessageTypeKMarkdown {
+func commonChanHandler(ctx *kook.TextMessageContext) {
+	if ctx.Common.Type != kook.MessageTypeText && ctx.Common.Type != kook.MessageTypeKMarkdown {
 		return
 	}
 	reply := func(words string) string {
@@ -168,7 +168,7 @@ func commonChanHandler(ctx *khl.TextMessageContext) {
 	}
 }
 
-func reactionHan(ctx *khl.ReactionAddContext) {
+func reactionHan(ctx *kook.ReactionAddContext) {
 	if ctx.Extra.UserID == botID {
 		return
 	}

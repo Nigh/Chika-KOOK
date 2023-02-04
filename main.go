@@ -12,8 +12,8 @@ import (
 
 	"github.com/jpillora/overseer"
 	"github.com/jpillora/overseer/fetcher"
-	"github.com/lonelyevil/khl"
-	"github.com/lonelyevil/khl/log_adapter/plog"
+	"github.com/lonelyevil/kook"
+	"github.com/lonelyevil/kook/log_adapter/plog"
 	"github.com/phuslu/log"
 	"github.com/spf13/viper"
 )
@@ -21,36 +21,36 @@ import (
 // TODO:
 // 仅保留masterID用于管理，上下线等调试信息直接私聊发送至master
 
-var updateLog string = "增加了更方便的删除账目功能"
-var buildVersion string = "Chika-Zero Alpha0008"
+var updateLog string = "更新kook api库至v0.0.31"
+var buildVersion string = "Chika-Zero Alpha0009"
 var masterChannel string
 var isVersionChange bool = false
-var oneSession *khl.Session
+var oneSession *kook.Session
 var botID string
 
-func sendKCard(target string, content string) (resp *khl.MessageResp, err error) {
-	return oneSession.MessageCreate((&khl.MessageCreate{
-		MessageCreateBase: khl.MessageCreateBase{
-			Type:     khl.MessageTypeCard,
+func sendKCard(target string, content string) (resp *kook.MessageResp, err error) {
+	return oneSession.MessageCreate((&kook.MessageCreate{
+		MessageCreateBase: kook.MessageCreateBase{
+			Type:     kook.MessageTypeCard,
 			TargetID: target,
 			Content:  content,
 		},
 	}))
 }
-func sendMarkdown(target string, content string) (resp *khl.MessageResp, err error) {
-	return oneSession.MessageCreate((&khl.MessageCreate{
-		MessageCreateBase: khl.MessageCreateBase{
-			Type:     khl.MessageTypeKMarkdown,
+func sendMarkdown(target string, content string) (resp *kook.MessageResp, err error) {
+	return oneSession.MessageCreate((&kook.MessageCreate{
+		MessageCreateBase: kook.MessageCreateBase{
+			Type:     kook.MessageTypeKMarkdown,
 			TargetID: target,
 			Content:  content,
 		},
 	}))
 }
 
-func sendMarkdownDirect(target string, content string) (mr *khl.MessageResp, err error) {
-	return oneSession.DirectMessageCreate(&khl.DirectMessageCreate{
-		MessageCreateBase: khl.MessageCreateBase{
-			Type:     khl.MessageTypeKMarkdown,
+func sendMarkdownDirect(target string, content string) (mr *kook.MessageResp, err error) {
+	return oneSession.DirectMessageCreate(&kook.DirectMessageCreate{
+		MessageCreateBase: kook.MessageCreateBase{
+			Type:     kook.MessageTypeKMarkdown,
 			TargetID: target,
 			Content:  content,
 		},
@@ -86,7 +86,7 @@ func prog(state overseer.State) {
 	token := viper.Get("token").(string)
 	fmt.Println("token=" + token)
 
-	oneSession = khl.New(token, plog.NewLogger(&l))
+	oneSession = kook.New(token, plog.NewLogger(&l))
 
 	commonChanHandlerInit()
 	accountBookInit()
@@ -175,14 +175,14 @@ func main() {
 	})
 }
 
-func markdownHan(ctx *khl.KmarkdownMessageContext) {
+func markdownHan(ctx *kook.KmarkdownMessageContext) {
 	if ctx.Extra.Author.Bot {
 		return
 	}
 	commonChanMarkdownHandler(ctx)
 }
 
-func messageHan(ctx *khl.TextMessageContext) {
+func messageHan(ctx *kook.TextMessageContext) {
 	if ctx.Extra.Author.Bot {
 		return
 	}
