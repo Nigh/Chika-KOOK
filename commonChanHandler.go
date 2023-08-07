@@ -124,6 +124,7 @@ func clock(input chan interface{}) {
 		case <-min.C:
 			hour, min, _ := time.Now().Local().Clock()
 			if min == 0 && hour == 5 {
+				// 新的一天
 			}
 		case <-halfhour.C:
 		}
@@ -131,25 +132,6 @@ func clock(input chan interface{}) {
 }
 
 func commonChanMarkdownHandler(ctx *khl.KmarkdownMessageContext) {
-	if ctx.Common.Type != khl.MessageTypeText && ctx.Common.Type != khl.MessageTypeKMarkdown {
-		return
-	}
-	reply := func(words string) string {
-		resp, _ := sendMarkdown(ctx.Common.TargetID, words)
-		return resp.MsgID
-	}
-	for n := range commRules {
-		v := &commRules[n]
-		r := regexp.MustCompile(v.matcher)
-		matchs := r.FindStringSubmatch(ctx.Common.Content)
-		if len(matchs) > 0 {
-			go v.getter(ctx.EventHandlerCommonContext, matchs, reply)
-			return
-		}
-	}
-}
-
-func commonChanHandler(ctx *khl.TextMessageContext) {
 	if ctx.Common.Type != khl.MessageTypeText && ctx.Common.Type != khl.MessageTypeKMarkdown {
 		return
 	}

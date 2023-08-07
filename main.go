@@ -90,7 +90,6 @@ func prog(state overseer.State) {
 
 	commonChanHandlerInit()
 	accountBookInit()
-	oneSession.AddHandler(messageHan)
 	oneSession.AddHandler(markdownHan)
 	oneSession.AddHandler(reactionHan)
 	oneSession.Open()
@@ -180,11 +179,4 @@ func markdownHan(ctx *khl.KmarkdownMessageContext) {
 		return
 	}
 	commonChanMarkdownHandler(ctx)
-}
-
-func messageHan(ctx *khl.TextMessageContext) {
-	if ctx.Extra.Author.Bot {
-		return
-	}
-	commonChanHandler(ctx)
 }

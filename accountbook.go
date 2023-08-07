@@ -32,8 +32,8 @@ type userRecord struct {
 
 type accountRecord struct {
 	Id       string
-	URecords []userRecord
-	MRecords []moneyRecord
+	URecords []userRecord  // 用户余额
+	MRecords []moneyRecord // 流水
 }
 
 func allAccountSave() error {
