@@ -1,33 +1,24 @@
 package main
 
 import (
-	kcard "local/khlcard"
+	"fmt"
+	kcard "kcard"
 	"regexp"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/lonelyevil/khl"
+	"github.com/lonelyevil/kook"
 )
 
 type handlerRule struct {
 	matcher string
-	getter  func(ctx *khl.EventHandlerCommonContext, matchs []string, reply func(string) string)
+	getter  func(ctx *kook.EventHandlerCommonContext, matchs []string, reply func(string) string)
 }
 
 var commOnce sync.Once
-var clockInput = make(chan interface{})
 var commRules []handlerRule = []handlerRule{
-	{`^Chika在么.{0,5}`, func(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
-		msgId := f("Chika在的哦")
-		go func(id []string) {
-			<-time.After(time.Second * time.Duration(5))
-			for _, v := range id {
-				oneSession.MessageDelete(v)
-			}
-		}([]string{msgId, ctx.Common.MsgID})
-	}},
-	{`^创建账本`, func(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
+	{`^创建账本`, func(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 		err := accountBookCreate(ctx.Common.TargetID)
 		if err != nil {
 			f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
@@ -40,12 +31,12 @@ var commRules []handlerRule = []handlerRule{
 	{`^删除\s+([0-9a-f\-]{16,48})`, accountDelete},
 }
 
-func accountCheck(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
+func accountCheck(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	records, err := accountBookGetSummary(ctx.Common.TargetID)
 	if err != nil {
 		f("错误:" + err.Error())
 	} else {
-		card := kcard.KHLCard{}
+		card := kcard.KookCard{}
 		card.Init()
 		card.AddModule(
 			kcard.KModule{
@@ -90,12 +81,15 @@ func accountCheck(ctx *khl.EventHandlerCommonContext, s []string, f func(string)
 	}
 }
 
-func accountAdd(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
+func accountAdd(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	money, _ := strconv.ParseFloat(s[2], 64)
 	if s[1] == "支出" {
 		money = -1 * money
 	}
 	comment := s[3]
+	if len(comment) > 128 {
+		comment = comment[:128] + "..."
+	}
 	err := accountBookRecordAdd(ctx.Common.TargetID, ctx.Common.MsgID, ctx.Common.AuthorID, money, comment)
 	if err != nil {
 		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
@@ -104,7 +98,7 @@ func accountAdd(ctx *khl.EventHandlerCommonContext, s []string, f func(string) s
 		oneSession.MessageAddReaction(ctx.Common.MsgID, "❌")
 	}
 }
-func accountDelete(ctx *khl.EventHandlerCommonContext, s []string, f func(string) string) {
+func accountDelete(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	err := accountBookRecordDelete(ctx.Common.TargetID, s[1], ctx.Common.AuthorID)
 	if err != nil {
 		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
@@ -113,30 +107,26 @@ func accountDelete(ctx *khl.EventHandlerCommonContext, s []string, f func(string
 	}
 }
 
-func commonChanHandlerInit() {
-	commOnce.Do(func() { go clock(clockInput) })
+func init() {
+	commOnce.Do(func() { go clock() })
 }
-func clock(input chan interface{}) {
+
+func clock() {
 	min := time.NewTicker(1 * time.Minute)
-	halfhour := time.NewTicker(23 * time.Minute)
-	for {
-		select {
-		case <-min.C:
-			hour, min, _ := time.Now().Local().Clock()
-			if min == 0 && hour == 5 {
-				// 新的一天
-			}
-		case <-halfhour.C:
-		}
+	for range min.C {
+		fmt.Println(time.Now().In(gTimezone).Format(gTimeFormat))
 	}
 }
 
-func commonChanMarkdownHandler(ctx *khl.KmarkdownMessageContext) {
-	if ctx.Common.Type != khl.MessageTypeText && ctx.Common.Type != khl.MessageTypeKMarkdown {
+func msgHandler(ctx *kook.KmarkdownMessageContext) {
+	if ctx.Extra.Author.Bot {
+		return
+	}
+	if ctx.Common.Type != kook.MessageTypeKMarkdown {
 		return
 	}
 	reply := func(words string) string {
-		resp, _ := sendMarkdown(ctx.Common.TargetID, words)
+		resp, _ := sendMsg(ctx.Common.TargetID, words)
 		return resp.MsgID
 	}
 	for n := range commRules {
@@ -150,12 +140,13 @@ func commonChanMarkdownHandler(ctx *khl.KmarkdownMessageContext) {
 	}
 }
 
-func reactionHan(ctx *khl.ReactionAddContext) {
-	if ctx.Extra.UserID == botID {
+func reactionHandler(ctx *kook.ReactionAddContext) {
+	u, _ := oneSession.UserMe()
+	if ctx.Extra.UserID == u.ID {
 		return
 	}
 	reply := func(words string) string {
-		resp, _ := sendMarkdown(ctx.Extra.ChannelID, words)
+		resp, _ := sendMsg(ctx.Extra.ChannelID, words)
 		return resp.MsgID
 	}
 	go func() {

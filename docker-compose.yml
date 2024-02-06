@@ -1,0 +1,14 @@
+version: '3'
+
+networks:
+  nets:
+
+services:
+  chika:
+    build: .
+    volumes:
+      - ./database:/database
+      - /etc/ssl/certs:/etc/ssl/certs
+    restart: on-failure
+    networks:
+      - nets

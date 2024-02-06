@@ -1,7 +1,4 @@
-config.json
 database
-database.json
-deploy
 
 # Binaries for programs and plugins
 *.exe
