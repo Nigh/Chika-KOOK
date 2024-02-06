@@ -39,12 +39,58 @@ type userRecord struct {
 	User  string  `json:"user"`
 	Money float64 `json:"money"`
 }
+type userRecordList []userRecord
+
+func (u *userRecordList) Push(user string, money float64) {
+	for i, v := range *u {
+		if v.User == user {
+			(*u)[i].Money += money
+			return
+		}
+	}
+	*u = append(*u, userRecord{user, money})
+}
+
+type historyReport struct {
+	User  string  `json:"user"`
+	Money float64 `json:"money"` // 当月收支
+	Total float64 `json:"total"` // 当月结算
+}
+type historyReportList []historyReport
+
+func (h *historyReportList) Push(user string, money float64) {
+	for i, v := range *h {
+		if v.User == user {
+			(*h)[i].Total += money
+			(*h)[i].Money += money
+			return
+		}
+	}
+	*h = append(*h, historyReport{user, money, money})
+}
+func (h *historyReportList) ClearMoney() {
+	for i := range *h {
+		(*h)[i].Money = 0
+	}
+}
+
+type historyRecord struct {
+	Date   string            `json:"date"`
+	Report historyReportList `json:"report"`
+}
+
+type historyDetail struct {
+	User    string  `json:"user"`
+	Time    string  `json:"time"`
+	Money   float64 `json:"money"`
+	Comment string  `json:"comment"`
+}
 
 type accountRecord struct {
-	Id       string        `json:"id"` // 账本ID(群组ID)
-	Token    string        `json:"token"`
-	URecords []userRecord  `json:"users"`   // 当月基础数据
-	MRecords []moneyRecord `json:"records"` // 流水
+	Id       string         `json:"id"` // 账本ID(群组ID)
+	Token    string         `json:"token"`
+	URecords userRecordList `json:"users"`   // 当月基础数据
+	MRecords []moneyRecord  `json:"records"` // 流水
 }
 
 func tokenGenerator() string {
@@ -119,7 +165,7 @@ func (a *accountBook) Create(id string) error {
 	if _, ok := a.Records[id]; ok {
 		return errors.New("账本已经存在")
 	}
-	a.Records[id] = &accountRecord{id, tokenGenerator(), []userRecord{}, []moneyRecord{}}
+	a.Records[id] = &accountRecord{id, tokenGenerator(), userRecordList{}, []moneyRecord{}}
 	return a.SaveById(id)
 }
 func (a *accountBook) SaveById(id string) error {
@@ -152,11 +198,11 @@ func (a *accountBook) GetComment(groupId, msgId string) string {
 	return a.Records[groupId].GetComment(msgId)
 }
 
-func (a *accountBook) GetSummary(id string) ([]userRecord, error) {
+func (a *accountBook) GetSummary(id string) (userRecordList, error) {
 	if _, ok := a.Records[id]; !ok {
 		return nil, errors.New("未找到账本")
 	}
-	ur := make([]userRecord, len(a.Records[id].URecords))
+	ur := make(userRecordList, len(a.Records[id].URecords))
 	copy(ur, a.Records[id].URecords)
 	for _, v := range a.Records[id].MRecords {
 		for i, u := range ur {

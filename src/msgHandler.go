@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math"
 	"regexp"
 	"strconv"
@@ -93,6 +92,57 @@ func accountCheck(ctx *kook.EventHandlerCommonContext, s []string, f func(string
 	}
 }
 
+func sendMonthSummary(groupId string, hr historyRecord) {
+	card := KookCard{}
+	card.Init()
+	card.AddModule(
+		kkModule{
+			Type: kkHeader,
+			Text: kkField{
+				Type:    kkPlaintext,
+				Content: hr.Date + " 月报",
+			},
+		},
+	)
+	card.AddModule(
+		kkModule{
+			Type: kkDivider,
+		},
+	)
+	var userCol string = "**昵称**\n"
+	var currentCol string = "**当月净支出**\n"
+	var totalCol string = "**总净支出**\n"
+	for _, v := range hr.Report {
+		userCol += "(met)" + v.User + "(met)\n"
+		currentCol += strconv.FormatFloat(-v.Money, 'f', 2, 64) + "\n"
+		totalCol += strconv.FormatFloat(-v.Total, 'f', 2, 64) + "\n"
+	}
+	card.AddModule(
+		kkModule{
+			Type: kkSection,
+			Text: kkField{
+				Type: kkParagraph,
+				Cols: 3,
+				Fields: []kkField{
+					{
+						Type:    kkMarkdown,
+						Content: userCol,
+					},
+					{
+						Type:    kkMarkdown,
+						Content: currentCol,
+					},
+					{
+						Type:    kkMarkdown,
+						Content: totalCol,
+					},
+				},
+			},
+		},
+	)
+	sendKCard(groupId, card.String())
+}
+
 func accountAdd(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	money, _ := strconv.ParseFloat(s[2], 64)
 	if s[1] == "支出" {
@@ -124,10 +174,90 @@ func init() {
 	commOnce.Do(func() { go clock() })
 }
 
+func generateReport() {
+	thisMonth := time.Now().In(gTimezone)
+	previousMonth := thisMonth.AddDate(0, -1, 0)
+
+	for _, v := range acout.Groups {
+		history := make([]historyRecord, 0)
+		db.Read(v.Id, "history", &history)
+		for _, h := range history {
+			if h.Date == previousMonth.Format("2006-01") {
+				// 上月月报已经生成
+				return
+			}
+		}
+	}
+	for _, v := range acout.Groups {
+		// 建立月报
+		monthReport := make(historyReportList, 0)
+
+		// 复制累计数据
+		for _, u := range acout.Records[v.Id].URecords {
+			monthReport.Push(u.User, u.Money)
+			monthReport.ClearMoney()
+		}
+
+		// 建立详细历史记录
+		historyDetailList := make([]historyDetail, 0)
+		// 保存非上月数据
+		newMRecords := make([]moneyRecord, 0)
+
+		// 统计上月数据
+		for _, m := range acout.Records[v.Id].MRecords {
+			// 过滤上月数据
+			if time.Unix(m.Time, 0).In(gTimezone).Month() == previousMonth.Month() {
+				// 月报数据
+				monthReport.Push(m.User, m.Money)
+				// 更新当前账本累计数据
+				acout.Records[v.Id].URecords.Push(m.User, m.Money)
+				// 详细历史记录
+				historyDetailList = append(historyDetailList, historyDetail{
+					User:    m.User,
+					Time:    time.Unix(m.Time, 0).In(gTimezone).Format(gTimeFormat),
+					Money:   m.Money,
+					Comment: m.Comment,
+				})
+			} else {
+				// 非上月数据保留
+				newMRecords = append(newMRecords, m)
+			}
+		}
+
+		// 持久化储存月报
+		currentMonthRecord := historyRecord{
+			Date:   previousMonth.Format("2006-01"),
+			Report: monthReport,
+		}
+		history := make([]historyRecord, 0)
+		db.Read(v.Id, "history", &history)
+		history = append(history, currentMonthRecord)
+		db.Write(v.Id, "history", history)
+
+		// 持久化储存详细历史
+		db.Write(v.Id, previousMonth.Format("2006-01"), historyDetailList)
+		// 更新当前账本MRecords
+		acout.Records[v.Id].MRecords = newMRecords
+		// 持久化储存当前账本
+		acout.SaveById(v.Id)
+
+		// 发送月报，3秒间隔，防止机器人被Ban
+		sendMonthSummary(v.Id, currentMonthRecord)
+		<-time.After(3 * time.Second)
+	}
+}
+
 func clock() {
-	min := time.NewTicker(1 * time.Minute)
-	for range min.C {
-		fmt.Println(time.Now().In(gTimezone).Format(gTimeFormat))
+	tick := time.NewTicker(15 * time.Minute)
+	done := false
+	for range tick.C {
+		if !done && time.Now().In(gTimezone).Day() == 1 && time.Now().In(gTimezone).Hour() >= 4 {
+			generateReport()
+			done = true
+		}
+		if time.Now().In(gTimezone).Day() != 1 {
+			done = false
+		}
 	}
 }
 
