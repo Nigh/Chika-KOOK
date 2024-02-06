@@ -70,6 +70,15 @@ func main() {
 	// Wait here until CTRL-C or other term signal is received.
 	fmt.Println("Bot is now running.")
 
+	go func() {
+		minute := time.NewTicker(1 * time.Minute)
+		for range minute.C {
+			if time.Since(oneSession.LastHeartbeatAck).Seconds() > 600 {
+				os.Exit(1)
+			}
+		}
+	}()
+
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
 	<-sc
