@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	kcard "kcard"
 	"regexp"
 	"strconv"
 	"sync"
@@ -36,20 +35,20 @@ func accountCheck(ctx *kook.EventHandlerCommonContext, s []string, f func(string
 	if err != nil {
 		f("错误:" + err.Error())
 	} else {
-		card := kcard.KookCard{}
+		card := KookCard{}
 		card.Init()
 		card.AddModule(
-			kcard.KModule{
-				Type: kcard.Header,
-				Text: kcard.KField{
-					Type:    kcard.Plaintext,
+			kkModule{
+				Type: kkHeader,
+				Text: kkField{
+					Type:    kkPlaintext,
 					Content: "总净资产",
 				},
 			},
 		)
 		card.AddModule(
-			kcard.KModule{
-				Type: kcard.Divider,
+			kkModule{
+				Type: kkDivider,
 			},
 		)
 		var userCol string = "**昵称**\n"
@@ -59,18 +58,18 @@ func accountCheck(ctx *kook.EventHandlerCommonContext, s []string, f func(string
 			moneyCol += strconv.FormatFloat(v.Money, 'f', 2, 64) + "\n"
 		}
 		card.AddModule(
-			kcard.KModule{
-				Type: kcard.Section,
-				Text: kcard.KField{
-					Type: kcard.Paragraph,
+			kkModule{
+				Type: kkSection,
+				Text: kkField{
+					Type: kkParagraph,
 					Cols: 2,
-					Fields: []kcard.KField{
+					Fields: []kkField{
 						{
-							Type:    kcard.Kmarkdown,
+							Type:    kkMarkdown,
 							Content: userCol,
 						},
 						{
-							Type:    kcard.Kmarkdown,
+							Type:    kkMarkdown,
 							Content: moneyCol,
 						},
 					},

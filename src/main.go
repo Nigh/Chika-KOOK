@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
-	"github.com/jpillora/overseer"
 	"github.com/lonelyevil/kook"
 	"github.com/lonelyevil/kook/log_adapter/plog"
 	"github.com/phuslu/log"
@@ -71,7 +71,7 @@ func main() {
 	fmt.Println("Bot is now running.")
 
 	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, os.Interrupt, overseer.SIGUSR2)
+	signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
 	<-sc
 
 	fmt.Println("Bot will shutdown after 1 second.")
