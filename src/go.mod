@@ -3,6 +3,7 @@ module Chika
 go 1.21
 
 require (
+	github.com/Nigh/kuma-push v0.1.0
 	github.com/lonelyevil/kook v0.0.33
 	github.com/lonelyevil/kook/log_adapter/plog v0.0.34
 	github.com/nanobox-io/golang-scribble v0.0.0-20190309225732-aa3e7c118975

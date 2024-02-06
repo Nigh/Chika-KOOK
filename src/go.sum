@@ -1,3 +1,5 @@
+github.com/Nigh/kuma-push v0.1.0 h1:EtuEuLIxUpwOY6om/gWllSz587Ecj/Iu2m0k8XGFj2M=
+github.com/Nigh/kuma-push v0.1.0/go.mod h1:e/WsNOed5np3Z1Olmrz7SP/vnq6SA0jZAdvZQpWry+o=
 github.com/bits-and-blooms/bitset v1.2.0/go.mod h1:gIdJ4wp64HaoK2YrL1Q5/N7Y16edYb8uY+O0FJTyyDA=
 github.com/bits-and-blooms/bitset v1.2.2 h1:J5gbX05GpMdBjCvQ9MteIg2KKDExr7DrgK+Yc15FvIk=
 github.com/bits-and-blooms/bitset v1.2.2/go.mod h1:gIdJ4wp64HaoK2YrL1Q5/N7Y16edYb8uY+O0FJTyyDA=
