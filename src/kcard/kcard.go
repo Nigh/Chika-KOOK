@@ -1,8 +1,8 @@
-package khlcard
+package kcard
 
 import "encoding/json"
 
-type KHLCard struct {
+type KookCard struct {
 	Card kCard
 }
 
@@ -83,17 +83,17 @@ type kCard struct {
 	Modules []KModule `json:"modules"`
 }
 
-func (card *KHLCard) Init() *KHLCard {
+func (card *KookCard) Init() *KookCard {
 	card.Card.Type = Card
 	card.Card.Size = Large
 	card.Card.Theme = Primary
 	return card
 }
-func (card *KHLCard) AddModule(module KModule) {
+func (card *KookCard) AddModule(module KModule) {
 	card.Card.Modules = append(card.Card.Modules, module)
 }
 
-func (card *KHLCard) AddModule_markdown(content string) {
+func (card *KookCard) AddModule_markdown(content string) {
 	card.Card.Modules = append(card.Card.Modules, KModule{
 		Type: "section",
 		Text: KField{
@@ -102,7 +102,7 @@ func (card *KHLCard) AddModule_markdown(content string) {
 		},
 	})
 }
-func (card *KHLCard) AddModule_header(content string) {
+func (card *KookCard) AddModule_header(content string) {
 	card.Card.Modules = append(card.Card.Modules, KModule{
 		Type: "header",
 		Text: KField{
@@ -111,12 +111,12 @@ func (card *KHLCard) AddModule_header(content string) {
 		},
 	})
 }
-func (card *KHLCard) AddModule_divider() {
+func (card *KookCard) AddModule_divider() {
 	card.Card.Modules = append(card.Card.Modules, KModule{
 		Type: "divider",
 	})
 }
-func (card *KHLCard) String() string {
+func (card *KookCard) String() string {
 	jsons, _ := json.Marshal([]kCard{card.Card})
 	return string(jsons)
 }

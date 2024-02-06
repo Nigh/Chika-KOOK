@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"errors"
+	"fmt"
 	"time"
 
 	scribble "github.com/nanobox-io/golang-scribble"
@@ -12,8 +14,6 @@ import (
 // ~~只响应频道记账信息。~~
 // 月度详细账单打包上传功能。
 // 私聊只用于查询本人账单。
-
-var db *scribble.Driver
 
 var cacheRecord []accountRecord
 
@@ -31,13 +31,20 @@ type userRecord struct {
 }
 
 type accountRecord struct {
-	Id       string
-	URecords []userRecord
-	MRecords []moneyRecord
+	Id       string // 账本ID(使用了群组ID)
+	Token    string
+	URecords []userRecord  // 用户余额
+	MRecords []moneyRecord // 流水
+}
+
+func tokenGenerator() string {
+	b := make([]byte, 32)
+	rand.Read(b)
+	return fmt.Sprintf("%x", b)
 }
 
 func allAccountSave() error {
-	if err := db.Write("db", "allAccountRecord", cacheRecord); err != nil {
+	if err := db.Write("records", "currentMonth", cacheRecord); err != nil {
 		return errors.New("账本保存失败")
 	}
 	return nil
@@ -106,12 +113,24 @@ func (a *accountRecord) GetComment(id string) string {
 	}
 	return "空"
 }
+func (a *accountRecord) GetToken() string {
+	return a.Token
+}
+func (a *accountRecord) RefreshToken() {
+	a.Token = tokenGenerator()
+}
 
-func accountBookInit() {
-	db, _ = scribble.New("./database", nil)
-	db.Read("db", "allAccountRecord", &cacheRecord)
+var db *scribble.Driver
+
+func init() {
+	db, _ = scribble.New("../database", nil)
+	// TODO: 每个群组的账本一个单独的目录
+	db.Read("records", "currentMonth", &cacheRecord)
 	for i := range cacheRecord {
 		cacheRecord[i].Tidy()
+		if cacheRecord[i].Token == "" {
+			cacheRecord[i].Token = tokenGenerator()
+		}
 	}
 }
 
@@ -121,7 +140,7 @@ func accountBookCreate(id string) error {
 			return errors.New("账本已经存在")
 		}
 	}
-	cacheRecord = append(cacheRecord, accountRecord{id, []userRecord{}, []moneyRecord{}})
+	cacheRecord = append(cacheRecord, accountRecord{id, tokenGenerator(), []userRecord{}, []moneyRecord{}})
 	return allAccountSave()
 }
 
@@ -161,11 +180,11 @@ func accountBookGetSummary(id string) ([]userRecord, error) {
 	return nil, errors.New("未找到账本")
 }
 
-func accountBookRecordAdd(groupId string, accountId string, user string, money float64, comment string) error {
+func accountBookRecordAdd(groupId string, recordId string, user string, money float64, comment string) error {
 	var found bool = false
 	for i, v := range cacheRecord {
 		if v.Id == groupId {
-			cacheRecord[i].Add(accountId, user, money, comment)
+			cacheRecord[i].Add(recordId, user, money, comment)
 			found = true
 			break
 		}
@@ -173,9 +192,9 @@ func accountBookRecordAdd(groupId string, accountId string, user string, money f
 	if !found {
 		return errors.New("没有注册账本")
 	}
-
 	return allAccountSave()
 }
+
 func accountBookRecordDelete(groupId string, accountId string, user string) error {
 	for i, v := range cacheRecord {
 		if v.Id == groupId {

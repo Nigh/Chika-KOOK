@@ -1,7 +1,8 @@
 package main
 
 import (
-	kcard "local/khlcard"
+	"fmt"
+	kcard "kcard"
 	"regexp"
 	"strconv"
 	"sync"
@@ -16,17 +17,7 @@ type handlerRule struct {
 }
 
 var commOnce sync.Once
-var clockInput = make(chan interface{})
 var commRules []handlerRule = []handlerRule{
-	{`^Chika在么.{0,5}`, func(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
-		msgId := f("Chika在的哦")
-		go func(id []string) {
-			<-time.After(time.Second * time.Duration(5))
-			for _, v := range id {
-				oneSession.MessageDelete(v)
-			}
-		}([]string{msgId, ctx.Common.MsgID})
-	}},
 	{`^创建账本`, func(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 		err := accountBookCreate(ctx.Common.TargetID)
 		if err != nil {
@@ -45,7 +36,7 @@ func accountCheck(ctx *kook.EventHandlerCommonContext, s []string, f func(string
 	if err != nil {
 		f("错误:" + err.Error())
 	} else {
-		card := kcard.KHLCard{}
+		card := kcard.KookCard{}
 		card.Init()
 		card.AddModule(
 			kcard.KModule{
@@ -96,6 +87,9 @@ func accountAdd(ctx *kook.EventHandlerCommonContext, s []string, f func(string) 
 		money = -1 * money
 	}
 	comment := s[3]
+	if len(comment) > 128 {
+		comment = comment[:128] + "..."
+	}
 	err := accountBookRecordAdd(ctx.Common.TargetID, ctx.Common.MsgID, ctx.Common.AuthorID, money, comment)
 	if err != nil {
 		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
@@ -113,29 +107,26 @@ func accountDelete(ctx *kook.EventHandlerCommonContext, s []string, f func(strin
 	}
 }
 
-func commonChanHandlerInit() {
-	commOnce.Do(func() { go clock(clockInput) })
+func init() {
+	commOnce.Do(func() { go clock() })
 }
-func clock(input chan interface{}) {
+
+func clock() {
 	min := time.NewTicker(1 * time.Minute)
-	halfhour := time.NewTicker(23 * time.Minute)
-	for {
-		select {
-		case <-min.C:
-			hour, min, _ := time.Now().Local().Clock()
-			if min == 0 && hour == 5 {
-			}
-		case <-halfhour.C:
-		}
+	for range min.C {
+		fmt.Println(time.Now().In(gTimezone).Format(gTimeFormat))
 	}
 }
 
-func commonChanMarkdownHandler(ctx *kook.KmarkdownMessageContext) {
-	if ctx.Common.Type != kook.MessageTypeText && ctx.Common.Type != kook.MessageTypeKMarkdown {
+func msgHandler(ctx *kook.KmarkdownMessageContext) {
+	if ctx.Extra.Author.Bot {
+		return
+	}
+	if ctx.Common.Type != kook.MessageTypeKMarkdown {
 		return
 	}
 	reply := func(words string) string {
-		resp, _ := sendMarkdown(ctx.Common.TargetID, words)
+		resp, _ := sendMsg(ctx.Common.TargetID, words)
 		return resp.MsgID
 	}
 	for n := range commRules {
@@ -149,31 +140,13 @@ func commonChanMarkdownHandler(ctx *kook.KmarkdownMessageContext) {
 	}
 }
 
-func commonChanHandler(ctx *kook.TextMessageContext) {
-	if ctx.Common.Type != kook.MessageTypeText && ctx.Common.Type != kook.MessageTypeKMarkdown {
+func reactionHandler(ctx *kook.ReactionAddContext) {
+	u, _ := oneSession.UserMe()
+	if ctx.Extra.UserID == u.ID {
 		return
 	}
 	reply := func(words string) string {
-		resp, _ := sendMarkdown(ctx.Common.TargetID, words)
-		return resp.MsgID
-	}
-	for n := range commRules {
-		v := &commRules[n]
-		r := regexp.MustCompile(v.matcher)
-		matchs := r.FindStringSubmatch(ctx.Common.Content)
-		if len(matchs) > 0 {
-			go v.getter(ctx.EventHandlerCommonContext, matchs, reply)
-			return
-		}
-	}
-}
-
-func reactionHan(ctx *kook.ReactionAddContext) {
-	if ctx.Extra.UserID == botID {
-		return
-	}
-	reply := func(words string) string {
-		resp, _ := sendMarkdown(ctx.Extra.ChannelID, words)
+		resp, _ := sendMsg(ctx.Extra.ChannelID, words)
 		return resp.MsgID
 	}
 	go func() {
