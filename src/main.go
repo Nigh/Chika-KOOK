@@ -73,7 +73,7 @@ func main() {
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
 	<-sc
-	err := allAccountSave()
+	err := acout.SaveAll()
 	if err != nil {
 		fmt.Println(err.Error())
 	}

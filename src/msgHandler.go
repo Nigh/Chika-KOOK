@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"sync"
@@ -18,7 +19,7 @@ type handlerRule struct {
 var commOnce sync.Once
 var commRules []handlerRule = []handlerRule{
 	{`^创建账本`, func(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
-		err := accountBookCreate(ctx.Common.TargetID)
+		err := acout.Create(ctx.Common.TargetID)
 		if err != nil {
 			f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
 		} else {
@@ -31,7 +32,7 @@ var commRules []handlerRule = []handlerRule{
 }
 
 func accountCheck(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
-	records, err := accountBookGetSummary(ctx.Common.TargetID)
+	records, err := acout.GetSummary(ctx.Common.TargetID)
 	if err != nil {
 		f("错误:" + err.Error())
 	} else {
@@ -42,7 +43,7 @@ func accountCheck(ctx *kook.EventHandlerCommonContext, s []string, f func(string
 				Type: kkHeader,
 				Text: kkField{
 					Type:    kkPlaintext,
-					Content: "总净资产",
+					Content: "总净支出",
 				},
 			},
 		)
@@ -52,17 +53,25 @@ func accountCheck(ctx *kook.EventHandlerCommonContext, s []string, f func(string
 			},
 		)
 		var userCol string = "**昵称**\n"
-		var moneyCol string = "**净资产**\n"
+		var moneyCol string = "**净支出**\n"
+		var diffCol string = "**净差额**\n"
+		var min float64 = math.MaxFloat64
 		for _, v := range records {
+			if min > -v.Money {
+				min = -v.Money
+			}
 			userCol += "(met)" + v.User + "(met)\n"
-			moneyCol += strconv.FormatFloat(v.Money, 'f', 2, 64) + "\n"
+			moneyCol += strconv.FormatFloat(-v.Money, 'f', 2, 64) + "\n"
+		}
+		for _, v := range records {
+			diffCol += "+" + strconv.FormatFloat(-v.Money-min, 'f', 2, 64) + "\n"
 		}
 		card.AddModule(
 			kkModule{
 				Type: kkSection,
 				Text: kkField{
 					Type: kkParagraph,
-					Cols: 2,
+					Cols: 3,
 					Fields: []kkField{
 						{
 							Type:    kkMarkdown,
@@ -71,6 +80,10 @@ func accountCheck(ctx *kook.EventHandlerCommonContext, s []string, f func(string
 						{
 							Type:    kkMarkdown,
 							Content: moneyCol,
+						},
+						{
+							Type:    kkMarkdown,
+							Content: diffCol,
 						},
 					},
 				},
@@ -89,7 +102,8 @@ func accountAdd(ctx *kook.EventHandlerCommonContext, s []string, f func(string) 
 	if len(comment) > 128 {
 		comment = comment[:128] + "..."
 	}
-	err := accountBookRecordAdd(ctx.Common.TargetID, ctx.Common.MsgID, ctx.Common.AuthorID, money, comment)
+
+	err := acout.RecordAdd(ctx.Common.TargetID, ctx.Common.MsgID, ctx.Common.AuthorID, money, comment)
 	if err != nil {
 		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
 	} else {
@@ -98,7 +112,7 @@ func accountAdd(ctx *kook.EventHandlerCommonContext, s []string, f func(string) 
 	}
 }
 func accountDelete(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
-	err := accountBookRecordDelete(ctx.Common.TargetID, s[1], ctx.Common.AuthorID)
+	err := acout.RecordDelete(ctx.Common.TargetID, s[1], ctx.Common.AuthorID)
 	if err != nil {
 		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
 	} else {
@@ -150,14 +164,9 @@ func reactionHandler(ctx *kook.ReactionAddContext) {
 	}
 	go func() {
 		if ctx.Extra.Emoji.ID == "❌" {
-			if accountExist(ctx.Extra.ChannelID, ctx.Extra.MsgID) {
-				var comment string = "NULL"
-				book := accountBookGet(ctx.Extra.ChannelID)
-				if book != nil {
-					comment = book.GetComment(ctx.Extra.MsgID)
-				}
-
-				err := accountBookRecordDelete(ctx.Extra.ChannelID, ctx.Extra.MsgID, ctx.Extra.UserID)
+			if acout.Exist(ctx.Extra.ChannelID, ctx.Extra.MsgID) {
+				comment := acout.GetComment(ctx.Extra.ChannelID, ctx.Extra.MsgID)
+				err := acout.RecordDelete(ctx.Extra.ChannelID, ctx.Extra.MsgID, ctx.Extra.UserID)
 				if err != nil {
 					reply("(met)" + ctx.Extra.UserID + "(met) " + err.Error())
 				} else {

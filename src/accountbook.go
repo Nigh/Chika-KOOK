@@ -15,26 +15,36 @@ import (
 // 月度详细账单打包上传功能。
 // 私聊只用于查询本人账单。
 
-var cacheRecord []accountRecord
+type accountBook struct {
+	// 所有账本
+	Records map[string]*accountRecord
+	// 有账本的群组ID
+	Groups []groupRecord
+}
+
+type groupRecord struct {
+	Id           string `json:"id"`
+	AccountToken string `json:"token"`
+}
 
 type moneyRecord struct {
-	User    string
-	Time    int64
-	Money   float64
-	Comment string
-	Id      string
+	User    string  `json:"user"`
+	Time    int64   `json:"time"`
+	Money   float64 `json:"money"`
+	Comment string  `json:"comment"`
+	Id      string  `json:"id"`
 }
 
 type userRecord struct {
-	User  string
-	Money float64
+	User  string  `json:"user"`
+	Money float64 `json:"money"`
 }
 
 type accountRecord struct {
-	Id       string // 账本ID(使用了群组ID)
-	Token    string
-	URecords []userRecord  // 用户余额
-	MRecords []moneyRecord // 流水
+	Id       string        `json:"id"` // 账本ID(群组ID)
+	Token    string        `json:"token"`
+	URecords []userRecord  `json:"users"`   // 当月基础数据
+	MRecords []moneyRecord `json:"records"` // 流水
 }
 
 func tokenGenerator() string {
@@ -43,44 +53,13 @@ func tokenGenerator() string {
 	return fmt.Sprintf("%x", b)
 }
 
-func allAccountSave() error {
-	if err := db.Write("records", "currentMonth", cacheRecord); err != nil {
-		return errors.New("账本保存失败")
-	}
-	return nil
-}
-
 func (a *accountRecord) Add(id string, user string, money float64, comment string) error {
 	a.MRecords = append(a.MRecords, moneyRecord{user, time.Now().Unix(), money, comment, id})
-	var found bool = false
-	for i, v := range a.URecords {
-		if v.User == user {
-			a.URecords[i].Money += money
-			found = true
-			break
-		}
-	}
-	if !found {
-		a.URecords = append(a.URecords, userRecord{user, money})
-	}
-	return allAccountSave()
+	return a.Save()
 }
 
-func (a *accountRecord) Tidy() {
-	a.URecords = []userRecord{}
-	for _, v := range a.MRecords {
-		var found bool = false
-		for i, u := range a.URecords {
-			if v.User == u.User {
-				found = true
-				a.URecords[i].Money += v.Money
-				break
-			}
-		}
-		if !found {
-			a.URecords = append(a.URecords, userRecord{v.User, v.Money})
-		}
-	}
+func (a *accountRecord) Save() error {
+	return db.Write(a.Id, "record", a)
 }
 
 func (a *accountRecord) Delete(id string, user string) error {
@@ -88,8 +67,7 @@ func (a *accountRecord) Delete(id string, user string) error {
 		if a.MRecords[i].Id == id {
 			if a.MRecords[i].User == user {
 				a.MRecords = append(a.MRecords[:i], a.MRecords[i+1:]...)
-				a.Tidy()
-				return allAccountSave()
+				return a.Save()
 			} else {
 				return errors.New("不能删除非本人创建的账目")
 			}
@@ -121,89 +99,85 @@ func (a *accountRecord) RefreshToken() {
 }
 
 var db *scribble.Driver
+var acout accountBook
 
 func init() {
 	db, _ = scribble.New("../database", nil)
-	// TODO: 每个群组的账本一个单独的目录
-	db.Read("records", "currentMonth", &cacheRecord)
-	for i := range cacheRecord {
-		cacheRecord[i].Tidy()
-		if cacheRecord[i].Token == "" {
-			cacheRecord[i].Token = tokenGenerator()
+	acout.Records = make(map[string]*accountRecord)
+	db.Read("records", "groups", &acout.Groups)
+	for _, v := range acout.Groups {
+		var tmpRecord accountRecord
+		db.Read(v.Id, "record", &tmpRecord)
+		if tmpRecord.Token == "" {
+			tmpRecord.Token = tokenGenerator()
 		}
+		acout.Records[v.Id] = &tmpRecord
 	}
 }
 
-func accountBookCreate(id string) error {
-	for _, v := range cacheRecord {
-		if v.Id == id {
-			return errors.New("账本已经存在")
-		}
+func (a *accountBook) Create(id string) error {
+	if _, ok := a.Records[id]; ok {
+		return errors.New("账本已经存在")
 	}
-	cacheRecord = append(cacheRecord, accountRecord{id, tokenGenerator(), []userRecord{}, []moneyRecord{}})
-	return allAccountSave()
+	a.Records[id] = &accountRecord{id, tokenGenerator(), []userRecord{}, []moneyRecord{}}
+	return a.SaveById(id)
+}
+func (a *accountBook) SaveById(id string) error {
+	if _, ok := a.Records[id]; !ok {
+		return errors.New("账本不存在")
+	}
+	return db.Write(id, "record", a.Records[id])
 }
 
-func accountBookExist(id string) bool {
-	for _, v := range cacheRecord {
-		if v.Id == id {
-			return true
-		}
-	}
-	return false
-}
-
-func accountExist(groupId, accountId string) bool {
-	for i, v := range cacheRecord {
-		if v.Id == groupId {
-			return cacheRecord[i].Exist(accountId)
-		}
-	}
-	return false
-}
-
-func accountBookGet(groupId string) *accountRecord {
-	for i, v := range cacheRecord {
-		if v.Id == groupId {
-			return &cacheRecord[i]
+func (a *accountBook) SaveAll() error {
+	db.Write("records", "groups", a.Groups)
+	for _, v := range a.Groups {
+		if err := a.SaveById(v.Id); err != nil {
+			return errors.New("账本" + v.Id + "保存失败:" + err.Error())
 		}
 	}
 	return nil
 }
 
-func accountBookGetSummary(id string) ([]userRecord, error) {
-	for _, v := range cacheRecord {
-		if v.Id == id {
-			return v.URecords, nil
-		}
+func (a *accountBook) Exist(groupId, accountId string) bool {
+	if _, ok := a.Records[groupId]; !ok {
+		return false
 	}
-	return nil, errors.New("未找到账本")
+	return a.Records[groupId].Exist(accountId)
+}
+func (a *accountBook) GetComment(groupId, msgId string) string {
+	if _, ok := a.Records[groupId]; !ok {
+		return "NULL"
+	}
+	return a.Records[groupId].GetComment(msgId)
 }
 
-func accountBookRecordAdd(groupId string, recordId string, user string, money float64, comment string) error {
-	var found bool = false
-	for i, v := range cacheRecord {
-		if v.Id == groupId {
-			cacheRecord[i].Add(recordId, user, money, comment)
-			found = true
-			break
+func (a *accountBook) GetSummary(id string) ([]userRecord, error) {
+	if _, ok := a.Records[id]; !ok {
+		return nil, errors.New("未找到账本")
+	}
+	ur := make([]userRecord, len(a.Records[id].URecords))
+	copy(ur, a.Records[id].URecords)
+	for _, v := range a.Records[id].MRecords {
+		for i, u := range ur {
+			if u.User == v.User {
+				ur[i].Money += v.Money
+			}
 		}
 	}
-	if !found {
+	return ur, nil
+}
+
+func (a *accountBook) RecordAdd(groupId string, recordId string, user string, money float64, comment string) error {
+	if _, ok := a.Records[groupId]; !ok {
 		return errors.New("没有注册账本")
 	}
-	return allAccountSave()
+	return a.Records[groupId].Add(recordId, user, money, comment)
 }
 
-func accountBookRecordDelete(groupId string, accountId string, user string) error {
-	for i, v := range cacheRecord {
-		if v.Id == groupId {
-			err := cacheRecord[i].Delete(accountId, user)
-			if err != nil {
-				return err
-			}
-			return allAccountSave()
-		}
+func (a *accountBook) RecordDelete(groupId string, accountId string, user string) error {
+	if _, ok := a.Records[groupId]; !ok {
+		return errors.New("未找到账本")
 	}
-	return errors.New("未找到账本")
+	return a.Records[groupId].Delete(accountId, user)
 }
