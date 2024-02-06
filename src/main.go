@@ -73,7 +73,10 @@ func main() {
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
 	<-sc
-
+	err := allAccountSave()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 	fmt.Println("Bot will shutdown after 1 second.")
 
 	<-time.After(time.Second * 1)
