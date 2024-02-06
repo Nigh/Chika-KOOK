@@ -7,14 +7,17 @@ import (
 	"syscall"
 	"time"
 
+	kuma "github.com/Nigh/kuma-push"
 	"github.com/lonelyevil/kook"
 	"github.com/lonelyevil/kook/log_adapter/plog"
 	"github.com/phuslu/log"
 )
 
 var (
-	gTimezone   *time.Location = time.FixedZone("CST", 8*60*60)
-	gTimeFormat string         = "2006-01-02 15:04"
+	gTimezone    *time.Location = time.FixedZone("CST", 8*60*60)
+	gTimeFormat  string         = "2006-01-02 15:04"
+	gKumaPushURL string
+	gToken       string
 )
 
 var oneSession *kook.Session
@@ -49,9 +52,10 @@ func sendMsgDirect(target string, content string) (mr *kook.MessageResp, err err
 }
 
 func main() {
-	token := os.Getenv("BOT_TOKEN")
-	fmt.Println("token=" + token)
-	if token == "" {
+	gToken = os.Getenv("BOT_TOKEN")
+	gKumaPushURL = os.Getenv("KUMA_PUSH_URL")
+	fmt.Println("token=" + gToken)
+	if gToken == "" {
 		fmt.Println("Bot token not set.")
 		<-time.After(time.Second * 3)
 		os.Exit(1)
@@ -62,11 +66,13 @@ func main() {
 		Writer: &log.ConsoleWriter{},
 	}
 
-	oneSession = kook.New(token, plog.NewLogger(&l))
+	oneSession = kook.New(gToken, plog.NewLogger(&l))
 	oneSession.AddHandler(msgHandler)
 	oneSession.AddHandler(reactionHandler)
 	oneSession.Open()
 
+	k := kuma.New(gKumaPushURL)
+	k.Start()
 	// Wait here until CTRL-C or other term signal is received.
 	fmt.Println("Bot is now running.")
 
