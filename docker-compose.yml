@@ -9,6 +9,8 @@ services:
     volumes:
       - ./database:/database
       - /etc/ssl/certs:/etc/ssl/certs
+    env_file:
+      - .env
     restart: on-failure
     networks:
       - nets
