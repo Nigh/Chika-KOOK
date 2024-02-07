@@ -86,11 +86,96 @@ type historyDetail struct {
 	Comment string  `json:"comment"`
 }
 
+type periodType string
+
+const (
+	ptDay   periodType = "day"
+	ptMonth periodType = "month"
+)
+
+type periodPay struct {
+	// 余额
+	Balance float64 `json:"balance"`
+	// 注释
+	Comment string `json:"comment"`
+	// 付款金额
+	Payment float64 `json:"pay"`
+	// 周期类型
+	PeriodType periodType `json:"type"`
+	// 付款周期（天/月）
+	PayPeriod int `json:"period"`
+	// 付款周期剩余（天）
+	PeriodLeft int `json:"nextPay"`
+}
+type periodPayList []periodPay
+
+func (p *periodPayList) AddBalance(comment string, balance float64) error {
+	for i, v := range *p {
+		if v.Comment == comment {
+			(*p)[i].Balance += balance
+			return nil
+		}
+	}
+	return errors.New("条目不存在")
+}
+func (p *periodPayList) SetBalance(comment string, balance float64) {
+	for i, v := range *p {
+		if v.Comment == comment {
+			(*p)[i].Balance = balance
+			return
+		}
+	}
+	*p = append(*p, periodPay{balance, comment, 0, "", 0, 0})
+}
+func (p *periodPayList) SetPayment(comment string, pay float64, pt periodType, period int) error {
+	for i, v := range *p {
+		if v.Comment == comment {
+			(*p)[i].Payment = pay
+			(*p)[i].PeriodType = pt
+			(*p)[i].PayPeriod = period
+			(*p)[i].PeriodLeft = period
+			return nil
+		}
+	}
+	return errors.New("条目不存在")
+}
+func (p *periodPayList) Remove(comment string) error {
+	for i, v := range *p {
+		if v.Comment == comment {
+			*p = append((*p)[:i], (*p)[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("条目不存在")
+}
+func (p *periodPayList) UpdateAtNewDay() {
+	for i, v := range *p {
+		if v.PeriodType == ptDay ||
+			(v.PeriodType == ptMonth && time.Now().In(gTimezone).Day() == 1) {
+			(*p)[i].PeriodLeft--
+			if (*p)[i].PeriodLeft <= 0 {
+				(*p)[i].Balance -= (*p)[i].Payment
+				(*p)[i].PeriodLeft = (*p)[i].PayPeriod
+			}
+		}
+	}
+}
+func (p *periodPayList) GetBadBalanceItem() []periodPay {
+	ret := make([]periodPay, 0)
+	for _, v := range *p {
+		if v.Balance < 0 {
+			ret = append(ret, v)
+		}
+	}
+	return ret
+}
+
 type accountRecord struct {
-	Id       string         `json:"id"` // 账本ID(群组ID)
-	Token    string         `json:"token"`
-	URecords userRecordList `json:"users"`   // 当月基础数据
-	MRecords []moneyRecord  `json:"records"` // 流水
+	Id        string         `json:"id"` // 账本ID(群组ID)
+	Token     string         `json:"token"`
+	URecords  userRecordList `json:"users"`     // 当月基础数据
+	PeriodPay periodPayList  `json:"periodpay"` // 周期付款
+	MRecords  []moneyRecord  `json:"records"`   // 流水
 }
 
 func tokenGenerator() string {
@@ -165,7 +250,7 @@ func (a *accountBook) Create(id string) error {
 	if _, ok := a.Records[id]; ok {
 		return errors.New("账本已经存在")
 	}
-	a.Records[id] = &accountRecord{id, tokenGenerator(), userRecordList{}, []moneyRecord{}}
+	a.Records[id] = &accountRecord{id, tokenGenerator(), userRecordList{}, periodPayList{}, []moneyRecord{}}
 	return a.SaveById(id)
 }
 func (a *accountBook) SaveById(id string) error {
