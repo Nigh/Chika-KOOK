@@ -83,8 +83,8 @@ func balanceList(ctx *kook.EventHandlerCommonContext, s []string, f func(string)
 		},
 	)
 	var nameCol string = "**名称**\n"
-	var paymentCol string = "**支付方式**\n"
-	var balanceCol string = "**余额**\n"
+	var paymentCol string = "**扣款方式**\n"
+	var balanceCol string = "**当前余额**\n"
 	for _, v := range pp {
 		nameCol += v.Comment + "\n"
 		balanceCol += strconv.FormatFloat(v.Balance, 'f', 2, 64) + "\n"
@@ -98,7 +98,7 @@ func balanceList(ctx *kook.EventHandlerCommonContext, s []string, f func(string)
 		if v.PeriodType == ptMonth {
 			PeriodType += "月"
 		}
-		PeriodType += "支付" + strconv.FormatFloat(v.Payment, 'f', 2, 64) + "\n"
+		PeriodType += "扣款" + strconv.FormatFloat(v.Payment, 'f', 2, 64) + "\n"
 		paymentCol += PeriodType
 	}
 	card.AddModule(
