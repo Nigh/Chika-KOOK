@@ -27,12 +27,22 @@ var commRules []handlerRule = []handlerRule{
 	}},
 	{`^查账`, accountCheck},
 	{`^(支出|收入)\s+(\d+\.?\d*)\s*(.*)`, accountAdd},
-	{`^余额\s+(\d+\.?\d*)\s*(.*)`, balanceSet},
-	{`^查余额`, balanceList},
+	{`^设置余额\s+(\d+\.?\d*)\s*(.*)`, balanceSet},
+	{`^删除余额\s+(\S+)`, balanceRemove},
+	{`^查自动扣款`, balanceList},
 	{`^设置(\S+)\s+每(\d*)(天|月)扣款\s+(\d+\.?\d*)`, balancePaySet},
 	{`^删除\s+([0-9a-f\-]{16,48})`, accountDelete},
 }
 
+func balanceRemove(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
+	pp := &acout.Records[ctx.Common.TargetID].PeriodPay
+	err := pp.Remove(s[1])
+	if err != nil {
+		f(err.Error())
+	} else {
+		f("已删除`" + s[1] + "`的自动扣款记录")
+	}
+}
 func balanceSet(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	pp := &acout.Records[ctx.Common.TargetID].PeriodPay
 	n, _ := strconv.ParseFloat(s[1], 64)
