@@ -17,23 +17,37 @@ type handlerRule struct {
 
 var commOnce sync.Once
 var commRules []handlerRule = []handlerRule{
-	{`^创建账本`, func(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
-		err := acout.Create(ctx.Common.TargetID)
-		if err != nil {
-			f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
-		} else {
-			f("(met)" + ctx.Common.AuthorID + "(met) " + "账本已创建")
-		}
-	}},
+	{`^帮助$`, help},
+	{`^创建账本`, accountCreate},
 	{`^查账`, accountCheck},
-	{`^(支出|收入)\s+(\d+\.?\d*)\s*(.*)`, accountAdd},
-	{`^设置余额\s+(\d+\.?\d*)\s*(.*)`, balanceSet},
-	{`^删除余额\s+(\S+)`, balanceRemove},
 	{`^查自动扣款`, balanceList},
-	{`^设置(\S+)\s+每(\d*)(天|月)扣款\s+(\d+\.?\d*)`, balancePaySet},
+	{`^(支出|收入)\s+(\d+\.?\d*)\s*(\S+)`, accountAdd},
+	{`^设置余额\s+(\d+\.?\d*)\s*(\S+)`, balanceSet},
+	{`^删除余额\s+(\S+)`, balanceRemove},
+	{`^设置(\S+)\s+每(\d*)(小时|天|月)扣款\s+(\d+\.?\d*)`, balancePaySet},
 	{`^删除\s+([0-9a-f\-]{16,48})`, accountDelete},
 }
 
+func help(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
+	helpStr := "命令列表:\n"
+	helpStr += "`帮助`：显示本条帮助\n"
+	helpStr += "`创建账本`：为频道创建账本，每个频道只能创建一个账本\n"
+	helpStr += "`查账`：查看总支出\n"
+	helpStr += "`查自动扣款`：查看自动扣款余额\n"
+	helpStr += "`支出 金额 备注` 或 `收入 金额 备注`：添加一条账本记录\n"
+	helpStr += "`设置余额 金额 备注`：设置一个自动扣款记录的余额，没有则会新建\n"
+	helpStr += "`删除余额 备注`：删除一个自动扣款记录\n"
+	helpStr += "`设置备注 每n[小时/天/月]扣款 金额`：设置一个自动扣款记录的扣款方式\n\n"
+	helpStr += "示例:\n"
+	helpStr += "`支出 1000 交通费`\n"
+	helpStr += "`设置余额 800 停车费`\n"
+	helpStr += "`设置停车费 每天扣款 40`\n"
+	helpStr += "`设置余额 128000 停机坪`\n"
+	helpStr += "`设置停机坪 每6小时扣款 800`\n"
+	helpStr += "`支出 2000 停机坪`\n\n"
+	helpStr += "自动扣款将在整点进行，当余额不足时，将会发布消息提醒。\n当支出项与自动扣款备注相同时，会自动将支出金额添加到自动扣款的余额中。"
+	f(helpStr)
+}
 func balanceRemove(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	pp := &acout.Records[ctx.Common.TargetID].PeriodPay
 	err := pp.Remove(s[1])
@@ -54,9 +68,12 @@ func balancePaySet(ctx *kook.EventHandlerCommonContext, s []string, f func(strin
 	n, _ := strconv.ParseFloat(s[4], 64)
 	pd := 1
 	var pt periodType
-	if s[3] == "天" {
+	switch s[3] {
+	case "小时":
+		pt = ptHour
+	case "天":
 		pt = ptDay
-	} else {
+	case "月":
 		pt = ptMonth
 	}
 	if len(s[2]) > 0 {
@@ -101,6 +118,9 @@ func balanceList(ctx *kook.EventHandlerCommonContext, s []string, f func(string)
 		PeriodType := "每"
 		if v.PayPeriod > 1 {
 			PeriodType += strconv.Itoa(v.PayPeriod)
+		}
+		if v.PeriodType == ptHour {
+			PeriodType += "小时"
 		}
 		if v.PeriodType == ptDay {
 			PeriodType += "天"
@@ -250,6 +270,14 @@ func sendMonthSummary(groupId string, hr historyRecord) {
 	sendKCard(groupId, card.String())
 }
 
+func accountCreate(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
+	err := acout.Create(ctx.Common.TargetID)
+	if err != nil {
+		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
+	} else {
+		f("(met)" + ctx.Common.AuthorID + "(met) " + "账本已创建")
+	}
+}
 func accountAdd(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	money, _ := strconv.ParseFloat(s[2], 64)
 	comment := s[3]
@@ -360,21 +388,16 @@ func generateReport() {
 }
 
 func clock() {
-	tick := time.NewTicker(15 * time.Minute)
-	done := false
-	newday := false
+	tick := time.NewTicker(17 * time.Minute)
+	lastUpdateHour := time.Now().In(gTimezone).Hour()
 	for range tick.C {
-		if !done && time.Now().In(gTimezone).Day() == 1 && time.Now().In(gTimezone).Hour() >= 4 {
-			generateReport()
-			done = true
-		}
-		if time.Now().In(gTimezone).Day() != 1 {
-			done = false
-		}
-		if !newday && time.Now().In(gTimezone).Hour() == 0 {
-			newday = true
+		if lastUpdateHour != time.Now().In(gTimezone).Hour() {
+			lastUpdateHour = time.Now().In(gTimezone).Hour()
+			if time.Now().In(gTimezone).Day() == 1 && time.Now().In(gTimezone).Hour() == 4 {
+				generateReport()
+			}
 			for k := range acout.Records {
-				acout.Records[k].PeriodPay.UpdateAtNewDay()
+				acout.Records[k].PeriodPay.UpdateAtNewHour()
 				bb := acout.Records[k].PeriodPay.GetBadBalanceItem()
 				if len(bb) > 0 {
 					for _, v := range bb {
@@ -382,9 +405,6 @@ func clock() {
 					}
 				}
 			}
-		}
-		if time.Now().In(gTimezone).Hour() == 23 {
-			newday = false
 		}
 	}
 }

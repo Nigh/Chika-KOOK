@@ -89,6 +89,7 @@ type historyDetail struct {
 type periodType string
 
 const (
+	ptHour  periodType = "hour"
 	ptDay   periodType = "day"
 	ptMonth periodType = "month"
 )
@@ -148,10 +149,12 @@ func (p *periodPayList) Remove(comment string) error {
 	}
 	return errors.New("条目不存在")
 }
-func (p *periodPayList) UpdateAtNewDay() {
+
+func (p *periodPayList) UpdateAtNewHour() {
 	for i, v := range *p {
-		if v.PeriodType == ptDay ||
-			(v.PeriodType == ptMonth && time.Now().In(gTimezone).Day() == 1) {
+		if v.PeriodType == ptHour ||
+			(v.PeriodType == ptDay && time.Now().In(gTimezone).Hour() == 0) ||
+			(v.PeriodType == ptMonth && time.Now().In(gTimezone).Day() == 1 && time.Now().In(gTimezone).Hour() == 0) {
 			(*p)[i].PeriodLeft--
 			if (*p)[i].PeriodLeft <= 0 {
 				(*p)[i].Balance -= (*p)[i].Payment
