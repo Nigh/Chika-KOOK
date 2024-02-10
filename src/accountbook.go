@@ -189,6 +189,15 @@ func tokenGenerator() string {
 
 func (a *accountRecord) Add(id string, user string, money float64, comment string) error {
 	a.MRecords = append(a.MRecords, moneyRecord{user, time.Now().Unix(), money, comment, id})
+	exist := false
+	for _, v := range a.URecords {
+		if v.User == user {
+			exist = true
+		}
+	}
+	if !exist {
+		a.URecords = append(a.URecords, userRecord{user, 0})
+	}
 	return a.Save()
 }
 
