@@ -262,7 +262,10 @@ func (a *accountBook) Create(id string) error {
 	if _, ok := a.Records[id]; ok {
 		return errors.New("账本已经存在")
 	}
-	a.Records[id] = &accountRecord{id, tokenGenerator(), userRecordList{}, periodPayList{}, []moneyRecord{}}
+	newToken := tokenGenerator()
+	acout.Groups = append(acout.Groups, groupRecord{id, newToken})
+	a.Records[id] = &accountRecord{id, newToken, userRecordList{}, periodPayList{}, []moneyRecord{}}
+	db.Write("records", "groups", acout.Groups)
 	return a.SaveById(id)
 }
 func (a *accountBook) SaveById(id string) error {
