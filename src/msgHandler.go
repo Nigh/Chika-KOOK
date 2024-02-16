@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"regexp"
 	"strconv"
@@ -28,6 +29,7 @@ var commRules []handlerRule = []handlerRule{
 	{`^删除\s+([0-9a-f\-]{16,48})`, accountDelete},
 }
 
+// TODO: 帮助卡片
 func help(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	helpStr := "命令列表:\n"
 	helpStr += "`帮助`：显示本条帮助\n"
@@ -45,7 +47,7 @@ func help(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string
 	helpStr += "`设置余额 128000 停机坪`\n"
 	helpStr += "`设置停机坪 每6小时扣款 800`\n"
 	helpStr += "`支出 2000 停机坪`\n\n"
-	helpStr += "自动扣款将在整点进行，当余额不足时，将会发布消息提醒。\n当支出项与自动扣款备注相同时，会自动将支出金额添加到自动扣款的余额中。"
+	helpStr += "当自动扣款余额不足时，将会发布消息提醒。\n当支出项与自动扣款备注相同时，会自动将支出金额添加到自动扣款的余额中。"
 	f(helpStr)
 }
 func balanceRemove(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
@@ -381,22 +383,45 @@ func generateReport() {
 		// 持久化储存当前账本
 		acout.SaveById(v.Id)
 
-		// 发送月报，3秒间隔，防止机器人被Ban
+		// 发送月报，添加间隔，防止机器人被Ban
+		fmt.Printf("Send Month Summary to Channel: [%s]\n", v.Id)
 		sendMonthSummary(v.Id, currentMonthRecord)
-		<-time.After(3 * time.Second)
+		<-time.After(1 * time.Second)
 	}
 }
 
 func clock() {
+	invalidChannels := make(map[string]int, 0)
 	tick := time.NewTicker(17 * time.Minute)
 	lastUpdateHour := time.Now().In(gTimezone).Hour()
 	for range tick.C {
 		if lastUpdateHour != time.Now().In(gTimezone).Hour() {
+			fmt.Printf("New Hour Tick\n")
 			lastUpdateHour = time.Now().In(gTimezone).Hour()
 			if time.Now().In(gTimezone).Day() == 1 && time.Now().In(gTimezone).Hour() == 4 {
 				generateReport()
 			}
 			for k := range acout.Records {
+				_, err := oneSession.ChannelView(k)
+				if err != nil {
+					// 频道无法访问
+					fmt.Printf("Channel[%s] access error: %s\n", k, err.Error())
+					if _, ok := invalidChannels[k]; !ok {
+						invalidChannels[k] = 1
+					} else {
+						invalidChannels[k]++
+						fmt.Printf("Channel[%s] invalid count: %d\n", k, invalidChannels[k])
+						if invalidChannels[k] > 11 {
+							// 连续超过11次频道无法访问，认为频道已经移除
+							delete(invalidChannels, k)
+							acout.RemoveByChannel(k)
+							fmt.Printf("Channel[%s] removed\n", k)
+						}
+					}
+					continue
+				} else {
+					invalidChannels[k] = 0
+				}
 				acout.Records[k].PeriodPay.UpdateAtNewHour()
 				bb := acout.Records[k].PeriodPay.GetBadBalanceItem()
 				if len(bb) > 0 {
