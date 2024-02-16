@@ -10,10 +10,7 @@ import (
 )
 
 // TODO:
-// 若频道不可访问，则删除对应账本
-// ~~只响应频道记账信息。~~
 // 月度详细账单打包上传功能。
-// 私聊只用于查询本人账单。
 
 type accountBook struct {
 	// 所有账本
@@ -273,6 +270,27 @@ func (a *accountBook) SaveById(id string) error {
 		return errors.New("账本不存在")
 	}
 	return db.Write(id, "record", a.Records[id])
+}
+func (a *accountBook) RemoveByChannel(id string) error {
+	if _, ok := a.Records[id]; !ok {
+		return errors.New("账本不存在")
+	}
+	for k := range a.Groups {
+		if a.Groups[k].Id == id {
+			history := make([]historyRecord, 0)
+			db.Read(id, "history", &history)
+			db.Write(id+"_bak", "history", history)
+			db.Delete(id, "history")
+
+			db.Write(id+"_bak", "record", a.Records[id])
+			db.Delete(id, "record")
+
+			delete(a.Records, id)
+			a.Groups = append(a.Groups[:k], a.Groups[k+1:]...)
+			return db.Write("records", "groups", a.Groups)
+		}
+	}
+	return errors.New("未找到频道")
 }
 
 func (a *accountBook) SaveAll() error {
