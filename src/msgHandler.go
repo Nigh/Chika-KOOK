@@ -5,7 +5,6 @@ import (
 	"math"
 	"regexp"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/lonelyevil/kook"
@@ -16,7 +15,6 @@ type handlerRule struct {
 	getter  func(ctx *kook.EventHandlerCommonContext, matchs []string, reply func(string) string)
 }
 
-var commOnce sync.Once
 var commRules []handlerRule = []handlerRule{
 	{`^帮助$`, help},
 	{`^创建账本`, accountCreate},
@@ -334,8 +332,8 @@ func accountDelete(ctx *kook.EventHandlerCommonContext, s []string, f func(strin
 }
 
 func init() {
-	commOnce.Do(func() { go clock() })
-	commOnce.Do(func() { go transferTimer() })
+	go clock()
+	go transferTimer()
 }
 
 func generateReport() {
