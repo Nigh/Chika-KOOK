@@ -318,29 +318,11 @@ type transferPending struct {
 var transferPendingList []transferPending
 
 func transferRequest(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
-	// 如果转账目标存在于账本频道
-	userList, err := oneSession.ChannelUserList(ctx.Common.TargetID)
-	if err != nil {
-		f("无法发起转账，错误:" + err.Error())
-		return
-	}
-	found := false
-	for _, v := range userList {
-		if v.ID == s[2] {
-			found = true
-			break
-		}
-	}
-	if !found {
-		f("转账目标不在频道内，无法发起转账")
-		return
-	}
-
 	userID := s[2]
 	money, _ := strconv.ParseFloat(s[1], 64)
-	f(userAt(ctx.Common.AuthorID) + " 向 " + userAt(userID) + " 的转账发起成功，收款方点击转账请求下方的 √ 即表示已经收款\n十分钟内未完成的转账将会被自动取消")
+	f(userAt(ctx.Common.AuthorID) + " 向 " + userAt(userID) + " 的转账请求已发起，收款方点击转账请求下方的 ✅ 即表示已经收款\n十分钟内未完成的转账将会被自动取消")
 	transferPendingList = append(transferPendingList, transferPending{ctx.Common.TargetID, ctx.Common.MsgID, ctx.Common.AuthorID, userID, money, 60})
-	oneSession.MessageAddReaction(ctx.Common.MsgID, "✔️")
+	oneSession.MessageAddReaction(ctx.Common.MsgID, "✅")
 }
 func accountDelete(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	err := acout.RecordDelete(ctx.Common.TargetID, s[1], ctx.Common.AuthorID)
@@ -533,7 +515,7 @@ func reactionHandler(ctx *kook.ReactionAddContext) {
 					oneSession.MessageDelete(ctx.Extra.MsgID)
 				}
 			}
-		case "✔️":
+		case "✅":
 			for i, v := range transferPendingList {
 				if v.channelID == ctx.Extra.ChannelID && v.msgID == ctx.Extra.MsgID {
 					if v.toID != ctx.Extra.UserID {
