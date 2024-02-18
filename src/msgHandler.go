@@ -297,7 +297,7 @@ func accountAdd(ctx *kook.EventHandlerCommonContext, s []string, f func(string) 
 		f(userAt(ctx.Common.AuthorID) + " 错误:" + err.Error())
 	} else {
 		f(userAt(ctx.Common.AuthorID) + " 记账成功，记账人点击记账下方的 ❌ 可以删除对应条目")
-		oneSession.MessageAddReaction(ctx.Common.MsgID, "❌")
+		tryAddReaction(ctx.Common.MsgID, "❌")
 	}
 	if acout.Records[ctx.Common.TargetID].PeriodPay.AddBalance(comment, money) == nil {
 		f("成功为`" + comment + "`余额充值 " + strconv.FormatFloat(money, 'f', 2, 64))
@@ -321,7 +321,7 @@ func transferRequest(ctx *kook.EventHandlerCommonContext, s []string, f func(str
 
 	f(transferString(ctx.Common.AuthorID, userID, money) + " 转账请求已发起\n收款方点击转账请求下方的 ✅ 即表示确认收款\n十分钟内未完成的转账将会被自动取消")
 	transferPendingList = append(transferPendingList, transferPending{ctx.Common.TargetID, ctx.Common.MsgID, ctx.Common.AuthorID, userID, money, 60})
-	oneSession.MessageAddReaction(ctx.Common.MsgID, "✅")
+	tryAddReaction(ctx.Common.MsgID, "✅")
 }
 func accountDelete(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	err := acout.RecordDelete(ctx.Common.TargetID, s[1], ctx.Common.AuthorID)
@@ -542,4 +542,19 @@ func userAt(id string) string {
 
 func transferString(idFrom string, idTo string, money float64) string {
 	return userAt(idFrom) + " ---(" + strconv.FormatFloat(money, 'f', 2, 64) + ")--> " + userAt(idTo)
+}
+
+func tryAddReaction(msgID string, emoji string) {
+	err := oneSession.MessageAddReaction(msgID, emoji)
+	if err != nil {
+		go func() {
+			for i := 0; i < 3; i++ {
+				time.Sleep(time.Second)
+				err := oneSession.MessageAddReaction(msgID, emoji)
+				if err == nil {
+					break
+				}
+			}
+		}()
+	}
 }
