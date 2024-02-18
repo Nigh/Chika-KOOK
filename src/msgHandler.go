@@ -318,7 +318,8 @@ var transferPendingList []transferPending
 func transferRequest(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	userID := s[2]
 	money, _ := strconv.ParseFloat(s[1], 64)
-	f(userAt(ctx.Common.AuthorID) + " 向 " + userAt(userID) + " 的转账请求已发起，收款方点击转账请求下方的 ✅ 即表示已经收款\n十分钟内未完成的转账将会被自动取消")
+
+	f(transferString(ctx.Common.AuthorID, userID, money) + " 转账请求已发起\n收款方点击转账请求下方的 ✅ 即表示确认收款\n十分钟内未完成的转账将会被自动取消")
 	transferPendingList = append(transferPendingList, transferPending{ctx.Common.TargetID, ctx.Common.MsgID, ctx.Common.AuthorID, userID, money, 60})
 	oneSession.MessageAddReaction(ctx.Common.MsgID, "✅")
 }
@@ -418,7 +419,7 @@ func transferTimer() {
 			if transferPendingList[idx].timeLeft > 0 {
 				newList = append(newList, transferPendingList[idx])
 			} else {
-				sendMsg(transferPendingList[idx].channelID, fmt.Sprintf("**注意**：%s -> %s 的转账请求已超时失效\n", userAt(transferPendingList[idx].fromID), userAt(transferPendingList[idx].toID)))
+				sendMsg(transferPendingList[idx].channelID, "**注意**："+transferString(transferPendingList[idx].fromID, transferPendingList[idx].toID, transferPendingList[idx].money)+" 的转账请求已超时自动取消")
 				oneSession.MessageDelete(transferPendingList[idx].msgID)
 			}
 		}
@@ -525,7 +526,7 @@ func reactionHandler(ctx *kook.ReactionAddContext) {
 					if err != nil {
 						reply(userAt(ctx.Extra.UserID) + " 错误:" + err.Error())
 					} else {
-						reply(userAt(ctx.Extra.UserID) + " 您已成功确认" + userAt(v.fromID) + "的转账")
+						reply(userAt(ctx.Extra.UserID) + " 您已确认接收到" + userAt(v.fromID) + "的转账，金额:" + strconv.FormatFloat(v.money, 'f', 2, 64))
 					}
 					transferPendingList = append(transferPendingList[:i], transferPendingList[i+1:]...)
 					break
@@ -537,4 +538,8 @@ func reactionHandler(ctx *kook.ReactionAddContext) {
 
 func userAt(id string) string {
 	return "(met)" + id + "(met)"
+}
+
+func transferString(idFrom string, idTo string, money float64) string {
+	return userAt(idFrom) + " ---(" + strconv.FormatFloat(money, 'f', 2, 64) + ")--> " + userAt(idTo)
 }
