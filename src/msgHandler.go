@@ -23,6 +23,7 @@ var commRules []handlerRule = []handlerRule{
 	{`^查账`, accountCheck},
 	{`^查自动扣款`, balanceList},
 	{`^(支出|收入)\s+(\d+\.?\d*)\s*(\S+)`, accountAdd},
+	{`^转账\s+(\d+\.?\d*)\s*\(met\)(\d+)\(met\)`, transferRequest},
 	{`^设置余额\s+(\d+\.?\d*)\s*(\S+)`, balanceSet},
 	{`^删除余额\s+(\S+)`, balanceRemove},
 	{`^设置(\S+)\s+每(\d*)(小时|天|月)扣款\s+(\d+\.?\d*)`, balancePaySet},
@@ -37,6 +38,7 @@ func help(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string
 	helpStr += "`查账`：查看总支出\n"
 	helpStr += "`查自动扣款`：查看自动扣款余额\n"
 	helpStr += "`支出 金额 备注` 或 `收入 金额 备注`：添加一条账本记录\n"
+	helpStr += "`转账 金额 @某用户`：发起一个转账请求\n"
 	helpStr += "`设置余额 金额 备注`：设置一个自动扣款记录的余额，没有则会新建\n"
 	helpStr += "`删除余额 备注`：删除一个自动扣款记录\n"
 	helpStr += "`设置备注 每n[小时/天/月]扣款 金额`：设置一个自动扣款记录的扣款方式\n\n"
@@ -189,7 +191,7 @@ func accountCheck(ctx *kook.EventHandlerCommonContext, s []string, f func(string
 		if min > -v.Money {
 			min = -v.Money
 		}
-		userCol += "(met)" + v.User + "(met)\n"
+		userCol += userAt(v.User) + "\n"
 		moneyCol += strconv.FormatFloat(-v.Money, 'f', 2, 64) + "\n"
 	}
 	for _, v := range records {
@@ -242,7 +244,7 @@ func sendMonthSummary(groupId string, hr historyRecord) {
 	var currentCol string = "**当月净支出**\n"
 	var totalCol string = "**总净支出**\n"
 	for _, v := range hr.Report {
-		userCol += "(met)" + v.User + "(met)\n"
+		userCol += userAt(v.User) + "\n"
 		currentCol += strconv.FormatFloat(-v.Money, 'f', 2, 64) + "\n"
 		totalCol += strconv.FormatFloat(-v.Total, 'f', 2, 64) + "\n"
 	}
@@ -275,9 +277,9 @@ func sendMonthSummary(groupId string, hr historyRecord) {
 func accountCreate(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	err := acout.Create(ctx.Common.TargetID)
 	if err != nil {
-		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
+		f(userAt(ctx.Common.AuthorID) + " 错误:" + err.Error())
 	} else {
-		f("(met)" + ctx.Common.AuthorID + "(met) " + "账本已创建")
+		f(userAt(ctx.Common.AuthorID) + " 账本已创建")
 	}
 }
 func accountAdd(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
@@ -294,26 +296,64 @@ func accountAdd(ctx *kook.EventHandlerCommonContext, s []string, f func(string) 
 
 	err := acout.RecordAdd(ctx.Common.TargetID, ctx.Common.MsgID, ctx.Common.AuthorID, rMoney, rComment)
 	if err != nil {
-		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
+		f(userAt(ctx.Common.AuthorID) + " 错误:" + err.Error())
 	} else {
-		f("(met)" + ctx.Common.AuthorID + "(met) " + "记账成功，记账人点击记账下方的 ❌ 可以删除对应条目")
+		f(userAt(ctx.Common.AuthorID) + " 记账成功，记账人点击记账下方的 ❌ 可以删除对应条目")
 		oneSession.MessageAddReaction(ctx.Common.MsgID, "❌")
 	}
 	if acout.Records[ctx.Common.TargetID].PeriodPay.AddBalance(comment, money) == nil {
 		f("成功为`" + comment + "`余额充值 " + strconv.FormatFloat(money, 'f', 2, 64))
 	}
 }
+
+type transferPending struct {
+	channelID string
+	msgID     string
+	fromID    string
+	toID      string
+	money     float64
+	timeLeft  int
+}
+
+var transferPendingList []transferPending
+
+func transferRequest(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
+	// 如果转账目标存在于账本频道
+	userList, err := oneSession.ChannelUserList(ctx.Common.TargetID)
+	if err != nil {
+		f("无法发起转账，错误:" + err.Error())
+		return
+	}
+	found := false
+	for _, v := range userList {
+		if v.ID == s[2] {
+			found = true
+			break
+		}
+	}
+	if !found {
+		f("转账目标不在频道内，无法发起转账")
+		return
+	}
+
+	userID := s[2]
+	money, _ := strconv.ParseFloat(s[1], 64)
+	f(userAt(ctx.Common.AuthorID) + " 向 " + userAt(userID) + " 的转账发起成功，收款方点击转账请求下方的 √ 即表示已经收款\n十分钟内未完成的转账将会被自动取消")
+	transferPendingList = append(transferPendingList, transferPending{ctx.Common.TargetID, ctx.Common.MsgID, ctx.Common.AuthorID, userID, money, 60})
+	oneSession.MessageAddReaction(ctx.Common.MsgID, "✔️")
+}
 func accountDelete(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	err := acout.RecordDelete(ctx.Common.TargetID, s[1], ctx.Common.AuthorID)
 	if err != nil {
-		f("(met)" + ctx.Common.AuthorID + "(met) " + "错误:" + err.Error())
+		f(userAt(ctx.Common.AuthorID) + " 错误:" + err.Error())
 	} else {
-		f("(met)" + ctx.Common.AuthorID + "(met) " + "账目已删除")
+		f(userAt(ctx.Common.AuthorID) + " 账目已删除")
 	}
 }
 
 func init() {
 	commOnce.Do(func() { go clock() })
+	commOnce.Do(func() { go transferTimer() })
 }
 
 func generateReport() {
@@ -389,7 +429,22 @@ func generateReport() {
 		<-time.After(1 * time.Second)
 	}
 }
-
+func transferTimer() {
+	tick := time.NewTicker(10 * time.Second)
+	for range tick.C {
+		newList := make([]transferPending, 0)
+		for idx := range transferPendingList {
+			transferPendingList[idx].timeLeft--
+			if transferPendingList[idx].timeLeft > 0 {
+				newList = append(newList, transferPendingList[idx])
+			} else {
+				sendMsg(transferPendingList[idx].channelID, fmt.Sprintf("**注意**：%s -> %s 的转账请求已超时失效\n", userAt(transferPendingList[idx].fromID), userAt(transferPendingList[idx].toID)))
+				oneSession.MessageDelete(transferPendingList[idx].msgID)
+			}
+		}
+		transferPendingList = newList
+	}
+}
 func clock() {
 	invalidChannels := make(map[string]int, 0)
 	tick := time.NewTicker(17 * time.Minute)
@@ -466,17 +521,40 @@ func reactionHandler(ctx *kook.ReactionAddContext) {
 		return resp.MsgID
 	}
 	go func() {
-		if ctx.Extra.Emoji.ID == "❌" {
+		switch ctx.Extra.Emoji.ID {
+		case "❌":
 			if acout.Exist(ctx.Extra.ChannelID, ctx.Extra.MsgID) {
 				comment := acout.GetComment(ctx.Extra.ChannelID, ctx.Extra.MsgID)
 				err := acout.RecordDelete(ctx.Extra.ChannelID, ctx.Extra.MsgID, ctx.Extra.UserID)
 				if err != nil {
-					reply("(met)" + ctx.Extra.UserID + "(met) " + err.Error())
+					reply(userAt(ctx.Extra.UserID) + " " + err.Error())
 				} else {
-					reply("(met)" + ctx.Extra.UserID + "(met) 成功删除了备注为`" + comment + "`的账目")
+					reply(userAt(ctx.Extra.UserID) + " 成功删除了备注为`" + comment + "`的账目")
 					oneSession.MessageDelete(ctx.Extra.MsgID)
+				}
+			}
+		case "✔️":
+			for i, v := range transferPendingList {
+				if v.channelID == ctx.Extra.ChannelID && v.msgID == ctx.Extra.MsgID {
+					if v.toID != ctx.Extra.UserID {
+						reply(userAt(ctx.Extra.UserID) + " 你不能确认别人的转账")
+						break
+					}
+					err := acout.RecordAdd(v.channelID, v.msgID, v.fromID, -v.money, "转账给"+userAt(v.toID))
+					acout.RecordAdd(v.channelID, v.msgID, v.toID, v.money, "接受"+userAt(v.fromID)+"的转账")
+					if err != nil {
+						reply(userAt(ctx.Extra.UserID) + " 错误:" + err.Error())
+					} else {
+						reply(userAt(ctx.Extra.UserID) + " 您已成功确认" + userAt(v.fromID) + "的转账")
+					}
+					transferPendingList = append(transferPendingList[:i], transferPendingList[i+1:]...)
+					break
 				}
 			}
 		}
 	}()
+}
+
+func userAt(id string) string {
+	return "(met)" + id + "(met)"
 }
