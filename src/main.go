@@ -77,15 +77,21 @@ func main() {
 	fmt.Println("Bot is now running.")
 
 	go func() {
+		defer func() {
+			fmt.Println("Bot is restarting.")
+			<-time.After(time.Second * 1)
+			oneSession.Close()
+			os.Exit(2)
+		}()
 		minute := time.NewTicker(1 * time.Minute)
 		restartTimer := 1440
 		for range minute.C {
 			restartTimer -= 1
 			if time.Now().Minute() == 0 && time.Now().Hour() == 5 {
-				os.Exit(2)
+				return
 			}
 			if time.Since(oneSession.LastHeartbeatAck).Seconds() > 600 || restartTimer <= 0 {
-				os.Exit(1)
+				return
 			}
 		}
 	}()
