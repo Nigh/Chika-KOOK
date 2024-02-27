@@ -432,7 +432,6 @@ func clock() {
 	lastUpdateHour := time.Now().In(gTimezone).Hour()
 	for range tick.C {
 		if lastUpdateHour != time.Now().In(gTimezone).Hour() {
-			fmt.Printf("New Hour Tick\n")
 			lastUpdateHour = time.Now().In(gTimezone).Hour()
 			if time.Now().In(gTimezone).Day() == 1 && time.Now().In(gTimezone).Hour() == 4 {
 				generateReport()
