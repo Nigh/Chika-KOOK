@@ -100,9 +100,9 @@ type periodPay struct {
 	Payment float64 `json:"pay"`
 	// 周期类型
 	PeriodType periodType `json:"type"`
-	// 付款周期（天/月）
+	// 付款周期（小时/天/月）
 	PayPeriod int `json:"period"`
-	// 付款周期剩余（天）
+	// 付款周期剩余
 	PeriodLeft int `json:"nextPay"`
 }
 type periodPayList []periodPay
@@ -147,7 +147,9 @@ func (p *periodPayList) Remove(comment string) error {
 	return errors.New("条目不存在")
 }
 
-func (p *periodPayList) UpdateAtNewHour() {
+// return bad balance items
+func (p *periodPayList) UpdateAtNewHour() []periodPay {
+	ret := make([]periodPay, 0)
 	for i, v := range *p {
 		if v.PeriodType == ptHour ||
 			(v.PeriodType == ptDay && time.Now().In(gTimezone).Hour() == 0) ||
@@ -156,15 +158,8 @@ func (p *periodPayList) UpdateAtNewHour() {
 			if (*p)[i].PeriodLeft <= 0 {
 				(*p)[i].Balance -= (*p)[i].Payment
 				(*p)[i].PeriodLeft = (*p)[i].PayPeriod
+				ret = append(ret, (*p)[i])
 			}
-		}
-	}
-}
-func (p *periodPayList) GetBadBalanceItem() []periodPay {
-	ret := make([]periodPay, 0)
-	for _, v := range *p {
-		if v.Balance < 0 {
-			ret = append(ret, v)
 		}
 	}
 	return ret

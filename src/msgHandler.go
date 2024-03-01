@@ -457,8 +457,7 @@ func clock() {
 				} else {
 					invalidChannels[k] = 0
 				}
-				acout.Records[k].PeriodPay.UpdateAtNewHour()
-				bb := acout.Records[k].PeriodPay.GetBadBalanceItem()
+				bb := acout.Records[k].PeriodPay.UpdateAtNewHour()
 				if len(bb) > 0 {
 					for _, v := range bb {
 						sendMsg(k, "`"+v.Comment+"` 余额已不足，请及时充值！")
