@@ -158,7 +158,9 @@ func (p *periodPayList) UpdateAtNewHour() []periodPay {
 			if (*p)[i].PeriodLeft <= 0 {
 				(*p)[i].Balance -= (*p)[i].Payment
 				(*p)[i].PeriodLeft = (*p)[i].PayPeriod
-				ret = append(ret, (*p)[i])
+				if (*p)[i].Balance < 0 {
+					ret = append(ret, (*p)[i])
+				}
 			}
 		}
 	}
