@@ -116,14 +116,18 @@ func (p *periodPayList) AddBalance(comment string, balance float64) error {
 	}
 	return errors.New("条目不存在")
 }
-func (p *periodPayList) SetBalance(comment string, balance float64) {
+func (p *periodPayList) SetBalance(comment string, balance float64) (exist bool, oldBalance float64) {
+	exist = false
 	for i, v := range *p {
 		if v.Comment == comment {
+			exist = true
+			oldBalance = (*p)[i].Balance
 			(*p)[i].Balance = balance
 			return
 		}
 	}
 	*p = append(*p, periodPay{balance, comment, 0, "", 0, 0})
+	return
 }
 func (p *periodPayList) SetPayment(comment string, pay float64, pt periodType, period int) error {
 	for i, v := range *p {
