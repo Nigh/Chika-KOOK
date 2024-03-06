@@ -50,6 +50,11 @@ func help(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string
 	helpStr += "当自动扣款余额不足时，将会发布消息提醒。\n当支出项与自动扣款备注相同时，会自动将支出金额添加到自动扣款的余额中。"
 	f(helpStr)
 }
+
+func formatFloat(f float64) string {
+	return strconv.FormatFloat(f, 'f', 2, 64)
+}
+
 func balanceRemove(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	pp := &acout.Records[ctx.Common.TargetID].PeriodPay
 	err := pp.Remove(s[1])
@@ -63,7 +68,7 @@ func balanceSet(ctx *kook.EventHandlerCommonContext, s []string, f func(string) 
 	pp := &acout.Records[ctx.Common.TargetID].PeriodPay
 	n, _ := strconv.ParseFloat(s[1], 64)
 	pp.SetBalance(s[2], n)
-	f("已设置`" + s[2] + "`余额为 " + strconv.FormatFloat(n, 'f', 2, 64))
+	f("已设置`" + s[2] + "`余额为 " + formatFloat(n))
 }
 func balancePaySet(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	pp := &acout.Records[ctx.Common.TargetID].PeriodPay
@@ -86,7 +91,7 @@ func balancePaySet(ctx *kook.EventHandlerCommonContext, s []string, f func(strin
 		f(err.Error())
 		return
 	}
-	f("已设置`" + s[1] + "`每" + strconv.Itoa(pd) + s[3] + "扣款 " + strconv.FormatFloat(n, 'f', 2, 64))
+	f("已设置`" + s[1] + "`每" + strconv.Itoa(pd) + s[3] + "扣款 " + formatFloat(n))
 }
 
 func balanceList(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
@@ -116,7 +121,7 @@ func balanceList(ctx *kook.EventHandlerCommonContext, s []string, f func(string)
 	var balanceCol string = "**当前余额**\n"
 	for _, v := range pp {
 		nameCol += v.Comment + "\n"
-		balanceCol += strconv.FormatFloat(v.Balance, 'f', 2, 64) + "\n"
+		balanceCol += formatFloat(v.Balance) + "\n"
 		PeriodType := "每"
 		if v.PayPeriod > 1 {
 			PeriodType += strconv.Itoa(v.PayPeriod)
@@ -130,7 +135,7 @@ func balanceList(ctx *kook.EventHandlerCommonContext, s []string, f func(string)
 		if v.PeriodType == ptMonth {
 			PeriodType += "月"
 		}
-		PeriodType += "扣款" + strconv.FormatFloat(v.Payment, 'f', 2, 64) + "\n"
+		PeriodType += "扣款" + formatFloat(v.Payment) + "\n"
 		paymentCol += PeriodType
 	}
 	card.AddModule(
@@ -190,10 +195,10 @@ func accountCheck(ctx *kook.EventHandlerCommonContext, s []string, f func(string
 			min = -v.Money
 		}
 		userCol += userAt(v.User) + "\n"
-		moneyCol += strconv.FormatFloat(-v.Money, 'f', 2, 64) + "\n"
+		moneyCol += formatFloat(-v.Money) + "\n"
 	}
 	for _, v := range records {
-		diffCol += "+" + strconv.FormatFloat(-v.Money-min, 'f', 2, 64) + "\n"
+		diffCol += "+" + formatFloat(-v.Money-min) + "\n"
 	}
 	card.AddModule(
 		kkModule{
@@ -243,8 +248,8 @@ func sendMonthSummary(groupId string, hr historyRecord) {
 	var totalCol string = "**总净支出**\n"
 	for _, v := range hr.Report {
 		userCol += userAt(v.User) + "\n"
-		currentCol += strconv.FormatFloat(-v.Money, 'f', 2, 64) + "\n"
-		totalCol += strconv.FormatFloat(-v.Total, 'f', 2, 64) + "\n"
+		currentCol += formatFloat(-v.Money) + "\n"
+		totalCol += formatFloat(-v.Total) + "\n"
 	}
 	card.AddModule(
 		kkModule{
@@ -300,7 +305,7 @@ func accountAdd(ctx *kook.EventHandlerCommonContext, s []string, f func(string) 
 		tryAddReaction(ctx.Common.MsgID, "❌")
 	}
 	if acout.Records[ctx.Common.TargetID].PeriodPay.AddBalance(comment, money) == nil {
-		f("成功为`" + comment + "`余额充值 " + strconv.FormatFloat(money, 'f', 2, 64))
+		f("成功为`" + comment + "`余额充值 " + formatFloat(money))
 	}
 }
 
@@ -524,7 +529,7 @@ func reactionHandler(ctx *kook.ReactionAddContext) {
 					if err != nil {
 						reply(userAt(ctx.Extra.UserID) + " 错误:" + err.Error())
 					} else {
-						reply(userAt(ctx.Extra.UserID) + " 您已确认接收到" + userAt(v.fromID) + "的转账，金额:" + strconv.FormatFloat(v.money, 'f', 2, 64))
+						reply(userAt(ctx.Extra.UserID) + " 您已确认接收到" + userAt(v.fromID) + "的转账，金额:" + formatFloat(v.money))
 					}
 					transferPendingList = append(transferPendingList[:i], transferPendingList[i+1:]...)
 					break
@@ -539,7 +544,7 @@ func userAt(id string) string {
 }
 
 func transferString(idFrom string, idTo string, money float64) string {
-	return userAt(idFrom) + " ---(" + strconv.FormatFloat(money, 'f', 2, 64) + ")--> " + userAt(idTo)
+	return userAt(idFrom) + " ---(" + formatFloat(money) + ")--> " + userAt(idTo)
 }
 
 func tryAddReaction(msgID string, emoji string) {
