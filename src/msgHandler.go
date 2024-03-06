@@ -67,8 +67,12 @@ func balanceRemove(ctx *kook.EventHandlerCommonContext, s []string, f func(strin
 func balanceSet(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	pp := &acout.Records[ctx.Common.TargetID].PeriodPay
 	n, _ := strconv.ParseFloat(s[1], 64)
-	pp.SetBalance(s[2], n)
-	f("已设置`" + s[2] + "`余额为 " + formatFloat(n))
+	exist, b := pp.SetBalance(s[2], n)
+	if !exist {
+		f("新建自动扣款`" + s[2] + "`余额为 " + formatFloat(n))
+	} else {
+		f("更新自动扣款`" + s[2] + "`余额 " + formatFloat(b) + " -> " + formatFloat(n))
+	}
 }
 func balancePaySet(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
 	pp := &acout.Records[ctx.Common.TargetID].PeriodPay
