@@ -125,7 +125,7 @@ func formatFloat(f float64) string {
 func sendResult(target string, content string, title string, color string) {
 	card := KookCard{}
 	card.Init()
-	card.Card.Theme = kkDanger
+	card.Card.Theme = kTheme(color)
 	card.AddModule(
 		kkModule{
 			Type: kkSection,
