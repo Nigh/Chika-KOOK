@@ -122,29 +122,29 @@ func formatFloat(f float64) string {
 	return strconv.FormatFloat(f, 'f', 2, 64)
 }
 
-func sendResult(target string, content string, title string, color string) {
+func sendResult(target string, content string, title string, theme kTheme) {
 	card := KookCard{}
 	card.Init()
-	card.Card.Theme = kTheme(color)
+	card.Card.Theme = theme
 	card.AddModule(
 		kkModule{
 			Type: kkSection,
 			Text: kkField{
 				Type:    kkMarkdown,
-				Content: "**(font)" + title + "(font)[" + color + "]**\n" + content,
+				Content: "**(font)" + title + "(font)[" + string(theme) + "]**\n" + content,
 			},
 		},
 	)
 	sendKCard(target, card.String())
 }
 func sendError(target string, content string) {
-	sendResult(target, content, "错误", "danger")
+	sendResult(target, content, "错误", kkDanger)
 }
 func sendSuccess(target string, content string) {
-	sendResult(target, content, "成功", "success")
+	sendResult(target, content, "成功", kkSuccess)
 }
 func sendWarning(target string, content string) {
-	sendResult(target, content, "警告", "warning")
+	sendResult(target, content, "警告", kkWarning)
 }
 
 func balanceRemove(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
