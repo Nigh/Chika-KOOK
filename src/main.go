@@ -51,10 +51,26 @@ func sendMsgDirect(target string, content string) (mr *kook.MessageResp, err err
 	})
 }
 
-func main() {
-	gToken = os.Getenv("BOT_TOKEN")
-	gKumaPushURL = os.Getenv("KUMA_PUSH_URL")
+type testenv struct {
+	Token   string `json:"token"`
+	KumaURL string `json:"kumaurl"`
+}
+
+var testEnv testenv
+
+func init() {
+	db.Read("test", "env", &testEnv)
+	if testEnv.Token != "" {
+		gToken = testEnv.Token
+		gKumaPushURL = testEnv.KumaURL
+	} else {
+		gToken = os.Getenv("BOT_TOKEN")
+		gKumaPushURL = os.Getenv("KUMA_PUSH_URL")
+	}
 	fmt.Println("token=" + gToken)
+}
+
+func main() {
 	if gToken == "" {
 		fmt.Println("Bot token not set.")
 		<-time.After(time.Second * 3)
