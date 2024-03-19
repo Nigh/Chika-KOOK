@@ -405,7 +405,8 @@ func accountAdd(ctx *kook.EventHandlerCommonContext, s []string, f func(string) 
 		tryAddReaction(ctx.Common.MsgID, "❌")
 	}
 	if acout.Records[ctx.Common.TargetID].PeriodPay.AddBalance(comment, money) == nil {
-		sendSuccess(ctx.Common.TargetID, "成功为`"+comment+"`余额充值 "+formatFloat(money))
+		m, _ := acout.Records[ctx.Common.TargetID].PeriodPay.GetBalance(comment)
+		sendSuccess(ctx.Common.TargetID, "成功为`"+comment+"`余额充值 "+formatFloat(money)+"\n当前余额 "+formatFloat(m))
 	}
 }
 
