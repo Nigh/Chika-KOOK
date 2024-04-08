@@ -532,6 +532,17 @@ func transferTimer() {
 		transferPendingList = newList
 	}
 }
+
+func recordOnNewHour(k string) {
+	bb := acout.Records[k].PeriodPay.UpdateAtNewHour()
+	if len(bb) > 0 {
+		warn := ""
+		for _, v := range bb {
+			warn += "`" + v.Comment + "` 余额已不足，请及时充值！\n"
+		}
+		sendWarning(k, warn)
+	}
+}
 func clock() {
 	invalidChannels := make(map[string]int, 0)
 	tick := time.NewTicker(17 * time.Minute)
@@ -563,14 +574,7 @@ func clock() {
 				} else {
 					invalidChannels[k] = 0
 				}
-				bb := acout.Records[k].PeriodPay.UpdateAtNewHour()
-				if len(bb) > 0 {
-					warn := ""
-					for _, v := range bb {
-						warn += "`" + v.Comment + "` 余额已不足，请及时充值！\n"
-					}
-					sendWarning(k, warn)
-				}
+				recordOnNewHour(k)
 			}
 		}
 	}
