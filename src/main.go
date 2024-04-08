@@ -94,6 +94,10 @@ func main() {
 
 	go func() {
 		defer func() {
+			err := acout.SaveAll()
+			if err != nil {
+				fmt.Println(err.Error())
+			}
 			fmt.Println("Bot is restarting.")
 			<-time.After(time.Second * 1)
 			oneSession.Close()
