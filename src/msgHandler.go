@@ -18,13 +18,13 @@ type handlerRule struct {
 var commRules []handlerRule = []handlerRule{
 	{`^帮助$`, help},
 	{`^创建账本`, accountCreate},
-	{`^查账`, accountCheck},
-	{`^查自动扣款`, balanceList},
+	{`^查账$`, accountCheck},
+	{`^查账单$`, balanceList},
 	{`^(支出|收入)\s+(\d+\.?\d*)\s*(\S+)`, accountAdd},
 	{`^转账\s+(\d+\.?\d*)\s*\(met\)(\d+)\(met\)`, transferRequest},
-	{`^设置余额\s+(\d+\.?\d*)\s*(\S+)`, balanceSet},
-	{`^删除余额\s+(\S+)`, balanceRemove},
-	{`^设置(\S+)\s+每(\d*)(小时|天|月)扣款\s+(\d+\.?\d*)`, balancePaySet},
+	{`^设置账单\s+(\d+\.?\d*)\s*(\S+)`, balanceSet},
+	{`^删除账单\s+(\S+)`, balanceRemove},
+	{`^设置(\S+)\s+每(\d*)(小时|天|月)\s+(\d+\.?\d*)`, balancePaySet},
 	{`^删除\s+([0-9a-f\-]{16,48})`, accountDelete},
 }
 
@@ -37,20 +37,20 @@ func help(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string
 	cmdList = append(cmdList, command{"帮助", "显示本条帮助"})
 	cmdList = append(cmdList, command{"创建账本", "为频道创建账本"})
 	cmdList = append(cmdList, command{"查账", "查看总支出"})
-	cmdList = append(cmdList, command{"查自动扣款", "查看自动扣款余额"})
+	cmdList = append(cmdList, command{"查账单", "查看账单余额"})
 	cmdList = append(cmdList, command{"支出 <金额> <备注>", "添加一条支出记录"})
 	cmdList = append(cmdList, command{"收入 <金额> <备注>", "添加一条收入记录"})
 	cmdList = append(cmdList, command{"转账 <金额> <@某用户>", "发起一个转账请求"})
-	cmdList = append(cmdList, command{"设置余额 <金额> <备注>", "新增或更新一个自动扣款记录的余额"})
-	cmdList = append(cmdList, command{"删除余额 <备注>", "删除一个自动扣款记录"})
-	cmdList = append(cmdList, command{"设置<备注> 每n[小时/天/月]扣款 <金额>", "设置一个自动扣款记录的扣款方式"})
+	cmdList = append(cmdList, command{"设置账单 <金额> <备注>", "新增或更新一个账单记录的余额"})
+	cmdList = append(cmdList, command{"删除账单 <备注>", "删除一个账单记录"})
+	cmdList = append(cmdList, command{"设置<备注> 每n[小时/天/月] <金额>", "设置一个账单记录的扣款方式"})
 	helpStr := "`支出 1000 交通费`\n"
-	helpStr += "`设置余额 800 停车费`\n"
+	helpStr += "`设置账单 800 停车费`\n"
 	helpStr += "`设置停车费 每天扣款 40`\n"
-	helpStr += "`设置余额 128000 停机坪`\n"
-	helpStr += "`设置停机坪 每6小时扣款 800`\n"
+	helpStr += "`设置账单 128000 停机坪`\n"
+	helpStr += "`设置停机坪 每6小时 800`\n"
 	helpStr += "`支出 2000 停机坪`\n\n"
-	helpStr += "每个频道只能创建一个账本，当频道删除时，账本会自动删除。\n当自动扣款余额不足时，将会发布消息提醒。\n当支出项与自动扣款备注相同时，会自动将支出金额添加到自动扣款的余额中。"
+	helpStr += "每个频道只能创建一个账本，当频道删除时，账本会自动删除。\n当账单余额不足时，将会发布消息提醒。\n当支出项与账单备注相同时，会自动将支出金额添加到账单的余额中。"
 	card := KookCard{}
 	card.Init()
 	card.AddModule(
@@ -153,7 +153,7 @@ func balanceRemove(ctx *kook.EventHandlerCommonContext, s []string, f func(strin
 	if err != nil {
 		sendError(ctx.Common.TargetID, err.Error())
 	} else {
-		sendSuccess(ctx.Common.TargetID, "已删除`"+s[1]+"`的自动扣款记录")
+		sendSuccess(ctx.Common.TargetID, "已删除`"+s[1]+"`的账单记录")
 	}
 }
 func balanceSet(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
@@ -161,9 +161,9 @@ func balanceSet(ctx *kook.EventHandlerCommonContext, s []string, f func(string) 
 	n, _ := strconv.ParseFloat(s[1], 64)
 	exist, b := pp.SetBalance(s[2], n)
 	if !exist {
-		sendSuccess(ctx.Common.TargetID, "新建自动扣款`"+s[2]+"`余额为 "+formatFloat(n))
+		sendSuccess(ctx.Common.TargetID, "新建账单`"+s[2]+"`余额为 "+formatFloat(n))
 	} else {
-		sendSuccess(ctx.Common.TargetID, "更新自动扣款`"+s[2]+"`余额 "+formatFloat(b)+" -> "+formatFloat(n))
+		sendSuccess(ctx.Common.TargetID, "更新账单`"+s[2]+"`余额 "+formatFloat(b)+" -> "+formatFloat(n))
 	}
 }
 func balancePaySet(ctx *kook.EventHandlerCommonContext, s []string, f func(string) string) {
